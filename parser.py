@@ -30,15 +30,18 @@ def processData(tag, product_open, company_open):
     if len(tag.stack) > 1:
         subtop = tag.stack[-2]
         
+    # product tag has been opened immediately before
     if product_open:
         if offer != None:
             offers.append(offer)
         offer = Offer()
+    # business entity tag has been opened immediately before
     if company_open:
         if be != None:
             bes.append(be)
         be = BusinessEntity()
     
+    # check upper two items on stack -> should be enough
     if subtop == "CATALOG":
         if top == "LANGUAGE": glob.lang = tag.content
         elif top == "CURRENCY": glob.currency = tag.content
@@ -80,7 +83,7 @@ def processData(tag, product_open, company_open):
         elif top == "PRICE_CURRENCY": offer.currency = tag.content
         elif top == "LOWER_BOUND": offer.product_quantity = tag.content
         elif top == "TERRITORY": offer.eligibleRegions = tag.content
-    # elif subtop == "PRODUCT_FEATURE":
+    # elif subtop == "PRODUCT_FEATURE": # TODO
 
 class EventHandler(xml.sax.ContentHandler):
     """Event handler of SAX Parser"""
@@ -91,32 +94,38 @@ class EventHandler(xml.sax.ContentHandler):
         self.company_open = False
     
     def startElement(self, name, attrs):
+        """This function gets called on every tag opening event"""
         self.attrs = attrs
         self.stack.append(name)
+        # check if offer or businessentity tag has been opened -> if opened, create new offer/business entity instance
         if name == "PRODUCT" or name == "ARTICLE":
             self.product_open = True
         elif name == "PARTY" or name == "SUPPLIER" or name == "BUYER":
             self.company_open = True
         
     def characters(self, ch):
+        """This function gets called for each literal content within a tag"""
         ch = " ".join(ch.split())
         tag = Tag(self.stack, self.attrs, ch)
         processData(tag, self.product_open, self.company_open)
+        # invalidate that tag has been opened
         self.product_open = False
         self.company_open = False
 
     def endElement(self, name):
+        """This function gets called on every tag closing event"""
         self.stack.pop()
  
  
 def parse(xml_file):
     """Parse given XML file"""
+    # parse
     parser = xml.sax.make_parser()
     parser.setContentHandler(EventHandler())
     parser.parse(open(xml_file, "r"))
     #parser.parse(open("lieske_bmecat_unterhaltungselektronik.xml", "r"))
 
-    # do after jobs
+    # attach last found bes and offers
     if be != None:
         bes.append(be)
     if offer != None:

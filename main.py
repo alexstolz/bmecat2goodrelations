@@ -17,7 +17,7 @@ import parser
 import serializer
 
 def main():
-    # parse    
+    # parse
     parser.parse("2fclass_000076.xml")
     # serialize
     serializer.serialize()

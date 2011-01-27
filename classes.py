@@ -53,6 +53,7 @@ class Offer():
         self.eligibleRegions = ""
         self.ean = ""
         self.manufacturer_id = ""
+        self.taxes = 0
 
 class Tag(): 
     """Class carrying tag metadata"""
