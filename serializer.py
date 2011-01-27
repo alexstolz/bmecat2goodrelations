@@ -50,8 +50,8 @@ def triple(subject, predicate, object, datatype=None, language=None):
 
 def serializeBusinessEntity(be):
     """Serialize a single business entity"""
-    identifier = "".join(str(be.legalName).split())
-    lang = glob.lang[:2]
+    identifier = "".join(str(be.legalName).split()) # remove spaces
+    lang = catalog.lang[:2] # make de out of deu
     
     # graph node uris
     be_about = URIRef("#be_"+identifier)
@@ -60,6 +60,8 @@ def serializeBusinessEntity(be):
     # annotate graph
     triple(be_about, RDF.type, GR.BusinessEntity)
     triple(be_about, GR.legalName, Literal(be.legalName), language=lang)
+    triple(be_about, GR.hasGlobalLocationNumber, Literal(be.gln), datatype=XSD.string)
+    triple(be_about, GR.hasDUNS, Literal(be.duns), datatype=XSD.string)
     # vcard
     triple(be_about, VCARD.url, URIRef(be.page))
     triple(be_about, VCARD.email, Literal(be.email), datatype=XSD.string)
@@ -81,7 +83,11 @@ def serializeBusinessEntity(be):
 def serializeOffer(offer):
     """Serialize a single offering"""
     identifier = offer.id
-    lang = glob.lang[:2]
+    manufacturer_id = offer.manufacturer_id
+    # use offer id as fallback identifier for manufacturer
+    if manufacturer_id == "":
+        manufacturer_id = identifier
+    lang = catalog.lang[:2] # make de out of deu
     
     # graph node uris
     o_about = URIRef("#offer_"+identifier)
@@ -90,6 +96,7 @@ def serializeOffer(offer):
     o_model = URIRef("#model_"+identifier)
     o_price = URIRef("#price_"+identifier)
     o_quantity = URIRef("#quantity_"+identifier)
+    o_manufacturer = URIRef("#manufacturer_"+manufacturer_id)
     
     # annotate graph
     # offer level
@@ -132,13 +139,17 @@ def serializeOffer(offer):
     triple(o_model, GR.description, Literal(offer.description), language=lang)
     triple(o_model, RDFS.comment, Literal(offer.comment), language=lang)
     triple(o_model, GR['hasEAN_UCC-13'], Literal(offer.ean), datatype=XSD.string)
+    # manufacturer level
+    triple(o_model, GR.hasManufacturer, o_manufacturer)
+    triple(o_manufacturer, RDF.type, GR.BusinessEntity)
+    triple(o_manufacturer, GR.name, Literal(offer.manufacturer_name))
     
     
     #print g.serialize(format="pretty-xml")
 
 def serialize():
     """Serialize array of objects"""
-    global glob, bes, offers
+    global catalog, bes, offers
     
     # serialize objects
     for be in bes:

@@ -10,8 +10,8 @@ Author: Alex Stolz
 Organization: E-Business and Web Science Research Group
 """
 
-class Global():
-    """Global settings"""
+class Catalog():
+    """Catalog settings"""
     def __init__(self):
         self.lang = "en" # default
         self.currency = "USD"
@@ -35,6 +35,8 @@ class BusinessEntity():
         self.fax = ""
         self.email = ""
         self.page = ""
+        self.duns = ""
+        self.gln = ""
 
 class Offer():
     """Offering class"""
@@ -53,6 +55,7 @@ class Offer():
         self.eligibleRegions = ""
         self.ean = ""
         self.manufacturer_id = ""
+        self.manufacturer_name = ""
         self.taxes = 0
 
 class Tag(): 

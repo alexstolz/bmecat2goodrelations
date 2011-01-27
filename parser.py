@@ -23,7 +23,7 @@ from globvars import *
 
 def processData(tag, product_open, company_open):
     """Catch information on-the-fly and store as objects"""
-    global glob, be, bes, offer, offers
+    global catalog, be, bes, offer, offers
     #print tag.stack, tag.content
     top = tag.stack[-1]
     subtop = None
@@ -43,13 +43,20 @@ def processData(tag, product_open, company_open):
     
     # check upper two items on stack -> should be enough
     if subtop == "CATALOG":
-        if top == "LANGUAGE": glob.lang = tag.content
-        elif top == "CURRENCY": glob.currency = tag.content
-        elif top == "VALID_START_DATE": glob.validFrom = tag.content
-        elif top == "VALID_END_DATE": glob.validThrough = tag.content
-        elif top == "TERRITORY": glob.eligibleRegions = tag.content
+        if top == "LANGUAGE": catalog.lang = tag.content
+        elif top == "CURRENCY": catalog.currency = tag.content
+        elif top == "VALID_START_DATE": catalog.validFrom = tag.content
+        elif top == "VALID_END_DATE": catalog.validThrough = tag.content
+        elif top == "TERRITORY": catalog.eligibleRegions = tag.content
     elif subtop == "PARTY" or subtop == "SUPPLIER" or subtop == "BUYER":
-        if top == "PARTY_ID": be.id = tag.content
+        if top == "PARTY_ID" or top == "SUPPLIER_ID" or top == "BUYER_ID":
+            be.id = tag.content
+            if "type" in tag.attrs.keys():
+                type = tag.attrs['type']
+                if type == "duns":
+                    be.duns = tag.content
+                elif type == "gln" or type == "iln":
+                    be.gln = tag.content
         elif top == "SUPPLIER_NAME" or top == "BUYER_NAME": be.legalName = tag.content
         elif top == "PARTY_ROLE": be.type = tag.content
     elif subtop == "ADDRESS":
@@ -71,6 +78,7 @@ def processData(tag, product_open, company_open):
         elif top == "DESCRIPTION_LONG": offer.comment = tag.content
         elif top == "EAN": offer.ean = tag.content
         elif top == "MANUFACTURER_PID": offer.manufacturer_id = tag.content
+        elif top == "MANUFACTURER_NAME": offer.manufacturer_name = tag.content
     elif subtop == "PRODUCT_ORDER_DETAILS":
         if top == "CONTENT_UNIT": offer.uom = tag.content
         if offer.uom == "" and top == "ORDER_UNIT": offer.uom = tag.content
@@ -83,7 +91,7 @@ def processData(tag, product_open, company_open):
         elif top == "PRICE_CURRENCY": offer.currency = tag.content
         elif top == "LOWER_BOUND": offer.product_quantity = tag.content
         elif top == "TERRITORY": offer.eligibleRegions = tag.content
-    # elif subtop == "PRODUCT_FEATURE": # TODO
+    # elif subtop == "PRODUCT_FEATURE" or subtop == "ARTICLE_FEATURE": # TODO
 
 class EventHandler(xml.sax.ContentHandler):
     """Event handler of SAX Parser"""

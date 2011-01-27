@@ -16,4 +16,4 @@ bes = []
 offers = []
 be = None
 offer = None
-glob = Global()
+catalog = Catalog()
