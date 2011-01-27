@@ -14,9 +14,14 @@ Organization: E-Business and Web Science Research Group
 # script with command line arguments: "python main.py file.xml"
 # make py2exe, py2app
 import parser
+import serializer
 
 def main():
-    pass
+    # parse    
+    parser.parse("2fclass_000076.xml")
+    # serialize
+    serializer.serialize()
+
 
 if __name__ == "__main__":
     main()

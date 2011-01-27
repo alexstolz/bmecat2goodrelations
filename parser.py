@@ -11,7 +11,7 @@ Organization: E-Business and Web Science Research Group
 """
 import xml.sax
 import sys
-from classes import *
+from globvars import *
 
 # global metadata: catalog language, kind (T_NEW_CATALOG, T_UPDATE_PRODUCTS, T_UPDATE_PRICES)
 
@@ -21,14 +21,6 @@ from classes import *
 # offers: article, product
 # offers metadata: catalog language, currency, valid_start_date/end_date, territory
 
-
-# initialization
-bes = []
-be = None
-offers = []
-offer = None
-glob = Global()
-    
 def processData(tag, product_open, company_open):
     """Catch information on-the-fly and store as objects"""
     global glob, be, bes, offer, offers
@@ -117,18 +109,15 @@ class EventHandler(xml.sax.ContentHandler):
         self.stack.pop()
  
  
-parser = xml.sax.make_parser()
-parser.setContentHandler(EventHandler())
-parser.parse(open("2fclass_000076.xml", "r"))
-#parser.parse(open("lieske_bmecat_unterhaltungselektronik.xml", "r"))
+def parse(xml_file):
+    """Parse given XML file"""
+    parser = xml.sax.make_parser()
+    parser.setContentHandler(EventHandler())
+    parser.parse(open(xml_file, "r"))
+    #parser.parse(open("lieske_bmecat_unterhaltungselektronik.xml", "r"))
 
-if be != None:
-    bes.append(be)
-if offer != None:
-    offers.append(offer)
-    
-for be in bes:
-    print "B: ", be.id, " -> ", be.legalName
-for offer in offers:
-    print "O: ", offer.id, " -> ",  offer.description
-
+    # do after jobs
+    if be != None:
+        bes.append(be)
+    if offer != None:
+        offers.append(offer)
