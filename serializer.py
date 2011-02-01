@@ -12,6 +12,7 @@ Organization: E-Business and Web Science Research Group
 from rdflib import *
 import os
 import re
+import datetime
 
 # namespaces
 owl = "http://www.w3.org/2002/07/owl#"
@@ -192,24 +193,25 @@ class Serializer:
         self.triple(g, o_about, GR.name, Literal(offer.description), language=lang)
         self.triple(g, o_about, GR.description, Literal(offer.comment), language=lang)
         if offer.validFrom:
-            self.triple(g, o_about, GR.validFrom, Literal(offer.validFrom), datatype=XSD.dateTime)
+            self.triple(g, o_about, GR.validFrom, Literal(self.convert2datetime(offer.validFrom)), datatype=XSD.dateTime)
         else: # global validFrom
-            self.triple(g, o_about, GR.validFrom, Literal(self.catalog.validFrom), datatype=XSD.dateTime)
+            self.triple(g, o_about, GR.validFrom, Literal(self.convert2datetime(self.catalog.validFrom)), datatype=XSD.dateTime)
         if offer.validThrough:
-            self.triple(g, o_about, GR.validThrough, Literal(offer.validThrough), datatype=XSD.dateTime)
+            self.triple(g, o_about, GR.validThrough, Literal(self.convert2datetime(offer.validThrough)), datatype=XSD.dateTime)
         else: # global validThrough
-            self.triple(g, o_about, GR.validThrough, Literal(self.catalog.validThrough), datatype=XSD.dateTime)
+            self.triple(g, o_about, GR.validThrough, Literal(self.convert2datetime(self.catalog.validThrough)), datatype=XSD.dateTime)
         for region in set(offer.eligibleRegions) | set(self.catalog.eligibleRegions):
             self.triple(g, o_about, GR.eligibleRegions, Literal(region), datatype=XSD.string)
         self.triple(g, o_about, GR['hasEAN_UCC-13'], Literal(offer.ean), datatype=XSD.string)
         self.triple(g, o_about, GR['hasGTIN-14'], Literal(offer.gtin), datatype=XSD.string)
         self.triple(g, o_about, GR.hasMPN, Literal(offer.mpn), datatype=XSD.string)
         self.triple(g, o_about, GR.condition, Literal(offer.condition))
-        self.triple(g, o_about, GR.hasEligibleQuantity, o_quantity)
-        self.triple(g, o_quantity, RDF.type, GR.QuantitativeValueFloat)
-        self.triple(g, o_quantity, GR.hasUnitOfMeasurement, Literal(offer.order_uom), datatype=XSD.string)
-        self.triple(g, o_quantity, GR.hasMinValueFloat, Literal(offer.order_units), datatype=XSD.float)
-        # TODO: hasBusinessFunction -> get from if supplier, buyer or party role was used
+        if offer.order_uom and offer.order_units:
+            self.triple(g, o_about, GR.hasEligibleQuantity, o_quantity)
+            self.triple(g, o_quantity, RDF.type, GR.QuantitativeValueFloat)
+            self.triple(g, o_quantity, GR.hasUnitOfMeasurement, Literal(offer.order_uom), datatype=XSD.string)
+            self.triple(g, o_quantity, GR.hasMinValueFloat, Literal(offer.order_units), datatype=XSD.float)
+        # hasBusinessFunction -> get from if supplier, buyer or party role was used
         if self.be_supplier and self.be_supplier.type == "buyer":
             self.triple(g, o_about, GR.hasBusinessFunction, GR.Buy)
         else:
@@ -217,14 +219,15 @@ class Serializer:
         # pricespecification level
         self.triple(g, o_about, GR.hasPriceSpecification, o_price)
         self.triple(g, o_price, RDF.type, GR.UnitPriceSpecification)
-        self.triple(g, o_price, GR.hasEligibleQuantity, p_quantity)
-        self.triple(g, p_quantity, RDF.type, GR.QuantitativeValueFloat)
-        self.triple(g, p_quantity, GR.hasUnitOfMeasurement, Literal(offer.order_uom), datatype=XSD.string)
-        self.triple(g, p_quantity, GR.hasMinValueFloat, Literal(offer.price_lower), datatype=XSD.float)
-        self.triple(g, o_price, GR.validFrom, Literal(offer.validFrom), datatype=XSD.dateTime)
-        self.triple(g, o_price, GR.validThrough, Literal(offer.validThrough), datatype=XSD.dateTime)
+        if offer.order_uom and offer.price_lower:
+            self.triple(g, o_price, GR.hasEligibleQuantity, p_quantity)
+            self.triple(g, p_quantity, RDF.type, GR.QuantitativeValueFloat)
+            self.triple(g, p_quantity, GR.hasUnitOfMeasurement, Literal(offer.order_uom), datatype=XSD.string)
+            self.triple(g, p_quantity, GR.hasMinValueFloat, Literal(offer.price_lower), datatype=XSD.float)
+        self.triple(g, o_price, GR.validFrom, Literal(self.convert2datetime(offer.validFrom)), datatype=XSD.dateTime)
+        self.triple(g, o_price, GR.validThrough, Literal(self.convert2datetime(offer.validThrough)), datatype=XSD.dateTime)
         self.triple(g, o_price, GR.hasUnitOfMeasurement, Literal(offer.order_uom), datatype=XSD.string)
-        self.triple(g, o_price, GR.valueAddedTaxIncluded, Literal((offer.taxes>0)), datatype=XSD.boolean) # TODO: implement taxes
+        self.triple(g, o_price, GR.valueAddedTaxIncluded, Literal(offer.taxes), datatype=XSD.boolean)
         if offer.currency:
             self.triple(g, o_price, GR.hasCurrency, Literal(offer.currency), datatype=XSD.string)
         else: # global currency
@@ -289,8 +292,15 @@ class Serializer:
         
         return g.serialize(format=rdf_format)
     
+    def convert2datetime(self, datestring):
+        if re.match(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", datestring):
+            mydatetime = datetime.datetime.strptime(datestring, "%Y-%m-%d")
+            return mydatetime.strftime("%Y-%m-%dT%H:%M:%SZ")
+        else:
+            return ""
+    
     def mapLanguage(self, iso639_2):
-        # language mappings iso639_2 -> iso639_1
+        """language mappings iso639_2 -> iso639_1"""
         mappings = {
             "aar":"aa",
             "abk":"ab",
