@@ -192,11 +192,11 @@ class Parser:
         parser.parse(open(xml_file, "r"))
         
         # write serialization for last found bes and offers
-        if self.be != None:
-            self.be.offers = self.offers
-            self.serializer.store(self.be, "be")
         if self.feature != None:
             self.offer.features.append(self.feature)
         if self.offer != None:
             self.serializer.store(self.offer, "offer")
-        
+            self.offers.append(self.offer.id)        
+        if self.be != None:
+            self.be.offers = self.offers
+            self.serializer.store(self.be, "be")
