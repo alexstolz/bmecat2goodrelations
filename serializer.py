@@ -189,8 +189,8 @@ class Serializer:
             self.triple(g, URIRef(selfns+"be_"+beidentifier), GR.offers, o_about)
         # offer level
         self.triple(g, o_about, RDF.type, GR.Offering)
-        self.triple(g, o_about, GR.description, Literal(offer.description), language=lang)
-        self.triple(g, o_about, RDFS.comment, Literal(offer.comment), language=lang)
+        self.triple(g, o_about, GR.name, Literal(offer.description), language=lang)
+        self.triple(g, o_about, GR.description, Literal(offer.comment), language=lang)
         if offer.validFrom:
             self.triple(g, o_about, GR.validFrom, Literal(offer.validFrom), datatype=XSD.dateTime)
         else: # global validFrom
@@ -248,8 +248,8 @@ class Serializer:
         # productmodel level
         self.triple(g, o_product, GR.hasMakeAndModel, o_model)
         self.triple(g, o_model, RDF.type, GR.ProductOrServiceModel)
-        self.triple(g, o_model, GR.description, Literal(offer.description), language=lang)
-        self.triple(g, o_model, RDFS.comment, Literal(offer.comment), language=lang)
+        self.triple(g, o_model, GR.name, Literal(offer.description), language=lang)
+        self.triple(g, o_model, GR.description, Literal(offer.comment), language=lang)
         self.triple(g, o_model, GR['hasEAN_UCC-13'], Literal(offer.ean), datatype=XSD.string)
         self.triple(g, o_model, GR['hasGTIN-14'], Literal(offer.gtin), datatype=XSD.string)
         self.triple(g, o_model, GR.hasMPN, Literal(offer.mpn), datatype=XSD.string)
