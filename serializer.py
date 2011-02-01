@@ -164,7 +164,7 @@ class Serializer:
         identifier = re.sub(r"[^a-zA-Z0-9]", "", offer.id)
         selfns = self.base_uri+"offer_"+identifier+".rdf#"
         g.bind("self", selfns)
-        manufacturer_id = offer.manufacturer_id
+        manufacturer_id = re.sub(r"[^a-zA-Z0-9]", "", offer.manufacturer_id)
         # use offer id as fallback identifier for manufacturer
         if manufacturer_id == "":
             manufacturer_id = identifier
@@ -178,7 +178,8 @@ class Serializer:
         o_product = URIRef(selfns+"product")
         o_model = URIRef(selfns+"model")
         o_price = URIRef(selfns+"price")
-        o_quantity = URIRef(selfns+"quantity")
+        o_quantity = URIRef(selfns+"order_quantity")
+        p_quantity = URIRef(selfns+"price_quantity")
         o_manufacturer = URIRef(selfns+"manufacturer_"+manufacturer_id)
         
         # annotate graph
@@ -198,15 +199,16 @@ class Serializer:
             self.triple(g, o_about, GR.validThrough, Literal(offer.validThrough), datatype=XSD.dateTime)
         else: # global validThrough
             self.triple(g, o_about, GR.validThrough, Literal(self.catalog.validThrough), datatype=XSD.dateTime)
-        self.triple(g, o_about, GR.eligibleRegions, Literal(offer.eligibleRegions), datatype=XSD.string) # TODO: check in what format eligibleRegions is passed!!
-        if offer.eligibleRegions != self.catalog.eligibleRegions: # global eligibleRegions
-            self.triple(g, o_about, GR.eligibleRegions, Literal(self.catalog.eligibleRegions), datatype=XSD.string)
+        for region in set(offer.eligibleRegions) | set(self.catalog.eligibleRegions):
+            self.triple(g, o_about, GR.eligibleRegions, Literal(region), datatype=XSD.string)
         self.triple(g, o_about, GR['hasEAN_UCC-13'], Literal(offer.ean), datatype=XSD.string)
         self.triple(g, o_about, GR['hasGTIN-14'], Literal(offer.gtin), datatype=XSD.string)
+        self.triple(g, o_about, GR.hasMPN, Literal(offer.mpn), datatype=XSD.string)
+        self.triple(g, o_about, GR.condition, Literal(offer.condition))
         self.triple(g, o_about, GR.hasEligibleQuantity, o_quantity)
         self.triple(g, o_quantity, RDF.type, GR.QuantitativeValueFloat)
-        self.triple(g, o_quantity, GR.hasUnitOfMeasurement, Literal(offer.uom), datatype=XSD.string)
-        self.triple(g, o_quantity, GR.hasMinValueFloat, Literal(offer.product_quantity), datatype=XSD.float)
+        self.triple(g, o_quantity, GR.hasUnitOfMeasurement, Literal(offer.order_uom), datatype=XSD.string)
+        self.triple(g, o_quantity, GR.hasMinValueFloat, Literal(offer.order_units), datatype=XSD.float)
         # TODO: hasBusinessFunction -> get from if supplier, buyer or party role was used
         if self.be_supplier and self.be_supplier.type == "buyer":
             self.triple(g, o_about, GR.hasBusinessFunction, GR.Buy)
@@ -215,9 +217,13 @@ class Serializer:
         # pricespecification level
         self.triple(g, o_about, GR.hasPriceSpecification, o_price)
         self.triple(g, o_price, RDF.type, GR.UnitPriceSpecification)
+        self.triple(g, o_price, GR.hasEligibleQuantity, p_quantity)
+        self.triple(g, p_quantity, RDF.type, GR.QuantitativeValueFloat)
+        self.triple(g, p_quantity, GR.hasUnitOfMeasurement, Literal(offer.order_uom), datatype=XSD.string)
+        self.triple(g, p_quantity, GR.hasMinValueFloat, Literal(offer.price_lower), datatype=XSD.float)
         self.triple(g, o_price, GR.validFrom, Literal(offer.validFrom), datatype=XSD.dateTime)
         self.triple(g, o_price, GR.validThrough, Literal(offer.validThrough), datatype=XSD.dateTime)
-        self.triple(g, o_price, GR.hasUnitOfMeasurement, Literal(offer.uom), datatype=XSD.string)
+        self.triple(g, o_price, GR.hasUnitOfMeasurement, Literal(offer.order_uom), datatype=XSD.string)
         self.triple(g, o_price, GR.valueAddedTaxIncluded, Literal((offer.taxes>0)), datatype=XSD.boolean) # TODO: implement taxes
         if offer.currency:
             self.triple(g, o_price, GR.hasCurrency, Literal(offer.currency), datatype=XSD.string)
@@ -228,8 +234,8 @@ class Serializer:
         # typeandquantitynode level
         self.triple(g, o_about, GR.includesObject, o_taqn)
         self.triple(g, o_taqn, RDF.type, GR.TypeAndQuantityNode)
-        self.triple(g, o_taqn, GR.amountOfThisGood, Literal(offer.price_quantity), datatype=XSD.float)
-        self.triple(g, o_taqn, GR.hasUnitOfMeasurement, Literal(offer.uom), datatype=XSD.string)
+        self.triple(g, o_taqn, GR.amountOfThisGood, Literal(offer.content_units), datatype=XSD.float)
+        self.triple(g, o_taqn, GR.hasUnitOfMeasurement, Literal(offer.content_uom), datatype=XSD.string)
         # productorservice level
         self.triple(g, o_taqn, GR.typeOfGood, o_product)
         self.triple(g, o_product, RDF.type, GR.ProductOrServicesSomeInstancesPlaceholder)
@@ -237,6 +243,8 @@ class Serializer:
         self.triple(g, o_product, GR.description, Literal(offer.comment), language=lang)
         self.triple(g, o_product, GR['hasEAN_UCC-13'], Literal(offer.ean), datatype=XSD.string)
         self.triple(g, o_product, GR['hasGTIN-14'], Literal(offer.gtin), datatype=XSD.string)
+        self.triple(g, o_product, GR.hasMPN, Literal(offer.mpn), datatype=XSD.string)
+        self.triple(g, o_product, GR.condition, Literal(offer.condition))
         # productmodel level
         self.triple(g, o_product, GR.hasMakeAndModel, o_model)
         self.triple(g, o_model, RDF.type, GR.ProductOrServiceModel)
@@ -244,6 +252,8 @@ class Serializer:
         self.triple(g, o_model, RDFS.comment, Literal(offer.comment), language=lang)
         self.triple(g, o_model, GR['hasEAN_UCC-13'], Literal(offer.ean), datatype=XSD.string)
         self.triple(g, o_model, GR['hasGTIN-14'], Literal(offer.gtin), datatype=XSD.string)
+        self.triple(g, o_model, GR.hasMPN, Literal(offer.mpn), datatype=XSD.string)
+        self.triple(g, o_model, GR.condition, Literal(offer.condition))
         # manufacturer level
         self.triple(g, o_model, GR.hasManufacturer, o_manufacturer)
         self.triple(g, o_manufacturer, RDF.type, GR.BusinessEntity)

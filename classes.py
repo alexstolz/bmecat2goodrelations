@@ -16,7 +16,7 @@ class Catalog():
         self.currency = "USD"
         self.validFrom = ""
         self.validThrough = ""
-        self.eligibleRegions = ""
+        self.eligibleRegions = []
 
 class BusinessEntity():
     """BusinessEntity class"""
@@ -44,20 +44,25 @@ class Offer():
         self.id = ""
         self.description = ""
         self.comment = ""
-        self.uom = "C62"
-        self.price_quantity = "1.0" # amountOfThisGood
+        self.content_uom = "C62" # uom, e.g. pen CONTENT_UNIT -> TypeAndQuantityNode.hasUnitOfMeasurement
+        self.content_units = "1.0" # number of content units in order, e.g. 5 pens in 1 package NO_CU_PER_OU -> TypeAndQuantityNode.amountOfThisGood
+        self.order_uom = "C62" # uom, e.g. package ORDER_UNIT -> Offering.hasEligibleQuantity.QuantitativeValueFloat.hasUnitOfMeasurement
+        self.order_units = "1.0" # minimum number of packages per order, e.g. 2 packages QUANTITY_MIN -> Offering.hasEligibleQuantity.QuantitativeValueFloat.hasMinValueFloat
+        self.price_lower = "1" # graduated prices LOWER_BOUND (unit is ORDER_UNIT) -> UnitPriceSpecification.hasEligibleQuantity
         self.validFrom = ""
         self.validThrough = ""
         self.price = ""
         self.price_factor = "1"
         self.currency = ""
         self.product_quantity = "" # eligibleQuantity min
-        self.eligibleRegions = ""
+        self.eligibleRegions = []
         self.ean = ""
         self.gtin = ""
+        self.mpn = "" # manufacturer part number
+        self.condition = "" # new, used, ...
         self.manufacturer_id = ""
         self.manufacturer_name = ""
-        self.taxes = 0
+        self.taxes = "true"
         self.features = [] # array of feature classes
         
 class Feature():

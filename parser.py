@@ -63,20 +63,29 @@ class Parser:
             if top == "DESCRIPTION_SHORT": self.offer.description = tag.content
             elif top == "DESCRIPTION_LONG": self.offer.comment = tag.content
             elif top == "EAN": self.offer.ean = tag.content
-            elif top == "MANUFACTURER_PID": self.offer.manufacturer_id = tag.content
-            elif top == "MANUFACTURER_NAME": self.offer.manufacturer_name = tag.content
-        elif subtop == "PRODUCT_ORDER_DETAILS":
-            if top == "CONTENT_UNIT": self.offer.uom = tag.content
-            if self.offer.uom == "" and top == "ORDER_UNIT": self.offer.uom = tag.content
-        elif subtop == "PRODUCT_PRICE_DETAILS":
+            elif top == "MANUFACTURER_PID" or top == "MANUFACTURER_AID": self.offer.mpn = tag.content
+            elif top == "MANUFACTURER_NAME":
+                self.offer.manufacturer_id = tag.content
+                self.offer.manufacturer_name = tag.content
+            elif top == "PRODUCT_STATUS" or top == "ARTICLE_STATUS":
+                if "type" in tag.attrs.keys():
+                    attr_type = tag.attrs['type']
+                    if attr_type: # condition: used, new, ...
+                        self.offer.condition = attr_type
+        elif subtop == "PRODUCT_ORDER_DETAILS" or subtop == "ARTICLE_ORDER_DETAILS":
+            if top == "CONTENT_UNIT": self.offer.content_uom = tag.content
+            if top == "ORDER_UNIT": self.offer.order_uom = tag.content
+            if top == "NO_CU_PER_OU": self.offer.content_units = tag.content
+            if top == "QUANTITY_MIN": self.offer.order_units = tag.content
+        elif subtop == "PRODUCT_PRICE_DETAILS" or subtop == "ARTICLE_PRICE_DETAILS":
             if top == "VALID_START_DATE": self.offer.validFrom = tag.content
             elif top == "VALID_END_DATE": self.offer.validThrough = tag.content
-        elif subtop == "PRODUCT_PRICE":
+        elif subtop == "PRODUCT_PRICE" or subtop == "ARTICLE_PRICE":
             if top == "PRICE_AMOUNT": self.offer.price = tag.content
             elif top == "PRICE_FACTOR": self.offer.price_factor = tag.content
             elif top == "PRICE_CURRENCY": self.offer.currency = tag.content
-            elif top == "LOWER_BOUND": self.offer.product_quantity = tag.content
-            elif top == "TERRITORY": self.offer.eligibleRegions = tag.content
+            elif top == "LOWER_BOUND": self.offer.price_lower = tag.content
+            elif top == "TERRITORY": self.offer.eligibleRegions.append(tag.content)
         elif subtop == "FEATURE":
             if top == "FNAME":
                 self.feature.name = tag.content
@@ -84,6 +93,13 @@ class Parser:
                 self.feature.value = tag.content
             elif top == "FUNIT":
                 self.feature.unit = tag.content
+        elif top == "PRODUCT_PRICE" or top == "ARTICLE_PRICE":
+            if "type" in tag.attrs.keys():
+                attr_type = tag.attrs['type']
+                if attr_type in ["net_list", "net_customer", "net_customer_exp", "net"]:
+                    self.offer.taxes = "false"
+                else:
+                    self.offer.taxes = "true"
     
     def processData(self, tag, product_open, company_open, feature_open):
         """Catch information on-the-fly and store as objects"""
@@ -98,7 +114,7 @@ class Parser:
             elif top == "CURRENCY": self.catalog.currency = tag.content
             elif top == "VALID_START_DATE": self.catalog.validFrom = tag.content
             elif top == "VALID_END_DATE": self.catalog.validThrough = tag.content
-            elif top == "TERRITORY": self.catalog.eligibleRegions = tag.content
+            elif top == "TERRITORY": self.catalog.eligibleRegions.append(tag.content)
             
         if self.search == "be":
             # business entity tag has been opened immediately before
