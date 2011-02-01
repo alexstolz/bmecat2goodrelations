@@ -47,7 +47,7 @@ def main():
             print "\t\t(default = output)"
             print "-b <uri>\tdetermine base uri for deployment"
             print "\t\t(default = http://www.example.com)"
-            print "--help\t\tdisplay help on program usage"
+            print "--help\t\tprint usage summary"
             print ""
             print "..."
             print "LGPL licensed converter from BMECat XML to GoodRelations for Web publication"
@@ -61,7 +61,7 @@ def main():
             
     if not input_file:
         print "No XML input file was provided!"
-        print "Help: \"python main.py --help\""
+        print "Usage summary: \"python main.py --help\""
         return
     
     # parse and serialize on-the-fly
