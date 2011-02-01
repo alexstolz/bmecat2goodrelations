@@ -15,6 +15,7 @@ Organization: E-Business and Web Science Research Group
 # make py2exe, py2app
 # let user choose between ProductOrServicesSomeInstancesPlaceholder and ActualProductOrServiceInstance
 # eligibleCustomerTypes, Payment Methods, Warranty Promises?
+import sys
 import parser
 import serializer
 import classes
@@ -22,16 +23,54 @@ import classes
 def main():
     """Main function"""
     # init
-    input_file = "fclass_000076.xml"#"bmecat_ikea_input.xml" #
+    input_file = None
+    base_uri = "http://www.example.com"
     output_folder = "output"
     catalog = classes.Catalog() # global settings are stored in catalog object
     
+    # parse command line arguments
+    previous = ""
+    for arg in sys.argv[1:]:
+        if previous == "-b":
+            base_uri = arg
+        elif previous == "-o":
+            output_folder = arg
+        elif previous == "" and arg[0] != '-':
+            input_file = arg
+        previous = ""
+        if arg == "--help":
+            print "Usage:"
+            print "python main.py [-o <dir>] [-b <uri>] [--help]"
+            print ""
+            print "Option parameters:"
+            print "-o <dir>\tcustomize location of output folder"
+            print "\t\t(default = output)"
+            print "-b <uri>\tdetermine base uri for deployment"
+            print "\t\t(default = http://www.example.com)"
+            print "--help\t\tdisplay help on program usage"
+            print ""
+            print "..."
+            print "LGPL licensed converter from BMECat XML to GoodRelations for Web publication"
+            print "E-Business and Web Science Research Group, http://www.unibw.de/ebusiness/"
+            print "..."
+            return
+        elif arg == "-b":
+            previous = "-b"
+        elif arg == "-o":
+            previous = "-o"
+            
+    if not input_file:
+        print "No XML input file was provided!"
+        print "Help: \"python main.py --help\""
+        return
+    
     # parse and serialize on-the-fly
-    serializerobject = serializer.Serializer("output", "http://www.example.de", catalog)
+    serializerobject = serializer.Serializer(output_folder, base_uri, catalog)
     parserobject = parser.Parser(serializerobject)
     parserobject.parse(input_file, search="offer")
     parserobject.parse(input_file, search="be")
 
+    print "ready to serve"
 
 if __name__ == "__main__":
     main()
