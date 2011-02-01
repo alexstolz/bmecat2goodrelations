@@ -30,8 +30,9 @@ XSD = Namespace(xsd)
 
 class Serializer:
     """Serializer class"""
-    def __init__(self, output_folder="", base_uri="", catalog=None):
+    def __init__(self, output_folder="", base_uri="", catalog=None, lang=""):
         """Initialization"""
+        self.lang = lang
         self.catalog = catalog
         self.base_uri = base_uri
         self.output_folder = output_folder
@@ -118,7 +119,9 @@ class Serializer:
         identifier = re.sub(r"[^a-zA-Z0-9]", "", "".join(str(be.legalName).split())) # remove spaces
         selfns = self.base_uri+"company.rdf#"
         g.bind("self", selfns)
-        lang = self.catalog.lang[:2] # make de out of deu
+        lang = self.mapLanguage(self.catalog.lang) # make de out of deu
+        if self.lang: # command line
+            lang = self.lang
         
         # graph node uris
         be_about = URIRef(selfns+"be_"+identifier)
@@ -165,7 +168,9 @@ class Serializer:
         # use offer id as fallback identifier for manufacturer
         if manufacturer_id == "":
             manufacturer_id = identifier
-        lang = self.catalog.lang[:2] # make de out of deu
+        lang = self.mapLanguage(self.catalog.lang) # make de out of deu
+        if self.lang: # command line
+            lang = self.lang
         
         # graph node uris
         o_about = URIRef(selfns+"offer")
@@ -273,5 +278,203 @@ class Serializer:
             self.triple(g, feature_id, GR.description, Literal("The product feature _"+feature.name+"_ has got the value _"+feature.value+"_"), language="en")
         
         return g.serialize(format=rdf_format)
+    
+    def mapLanguage(self, iso639_2):
+        # language mappings iso639_2 -> iso639_1
+        mappings = {
+            "aar":"aa",
+            "abk":"ab",
+            "afr":"af",
+            "aka":"ak",
+            "alb":"sq", "sqi":"sq",
+            "amh":"am",
+            "ara":"ar",
+            "arg":"an",
+            "arm":"hy", "hye":"hy",
+            "asm":"as",
+            "ava":"av",
+            "ave":"ae",
+            "aym":"ay",
+            "aze":"az",
+            "bak":"ba",
+            "bam":"bm",
+            "baq":"eu", "eus":"eu",
+            "bel":"be",
+            "ben":"bn",
+            "bih":"bh",
+            "bis":"bi",
+            "tib":"bo", "bod":"bo",
+            "bos":"bs",
+            "bre":"br",
+            "bul":"bg",
+            "bur":"my", "mya":"my",
+            "cat":"ca",
+            "cze":"cs", "ces":"cs",
+            "cha":"ch",
+            "che":"ce",
+            "chi":"zh", "zho":"zh",
+            "chu":"cu",
+            "chv":"cv",
+            "cor":"kw",
+            "cos":"co",
+            "cre":"cr",
+            "wel":"cy", "cym":"cy",
+            "dan":"da",
+            "ger":"de", "deu":"de",
+            "div":"dv",
+            "dut":"nl", "nld":"nl",
+            "dzo":"dz",
+            "gre":"el", "ell":"el",
+            "eng":"en",
+            "epo":"eo",
+            "est":"et",
+            "ewe":"ee",
+            "fao":"fo",
+            "per":"fa", "fas":"fa",
+            "fij":"fj",
+            "fin":"fi",
+            "fre":"fr", "fra":"fr",
+            "fry":"fy",
+            "ful":"ff",
+            "geo":"ka", "kat":"ka",
+            "gla":"gd",
+            "gle":"ga",
+            "glg":"gl",
+            "glv":"gv",
+            "grn":"gn",
+            "guj":"gu",
+            "hat":"ht",
+            "hau":"ha",
+            "heb":"he",
+            "her":"hz",
+            "hin":"hi",
+            "hmo":"ho",
+            "hrv":"hr",
+            "hun":"hu",
+            "ibo":"ig",
+            "ice":"is", "isl":"is",
+            "ido":"io",
+            "iii":"ii",
+            "iku":"iu",
+            "ile":"ie",
+            "ina":"ia",
+            "ind":"id",
+            "ipk":"ik",
+            "ita":"it",
+            "jav":"jv",
+            "jpn":"ja",
+            "kal":"kl",
+            "kan":"kn",
+            "kas":"ks",
+            "geo":"ka", "kat":"ka",
+            "kau":"kr",
+            "kaz":"kk",
+            "khm":"km",
+            "kik":"ki",
+            "kin":"rw",
+            "kir":"ky",
+            "kom":"kv",
+            "kon":"kg",
+            "kor":"ko",
+            "kua":"kj",
+            "kur":"ku",
+            "lao":"lo",
+            "lat":"la",
+            "lav":"lv",
+            "lim":"li",
+            "lin":"ln",
+            "lit":"lt",
+            "ltz":"lb",
+            "lub":"lu",
+            "lug":"lg",
+            "mac":"mk", "mkd":"mk",
+            "mah":"mh",
+            "mal":"ml",
+            "mao":"mi", "mri":"mi",
+            "mar":"mr",
+            "may":"ms", "msa":"ms",
+            "mac":"mk", "mkd":"mk",
+            "mlg":"mg",
+            "mlt":"mt",
+            "mao":"mi", "mri":"mi",
+            "may":"ms", "msa":"ms",
+            "nau":"na",
+            "nav":"nv",
+            "nbl":"nr",
+            "nde":"nd",
+            "ndo":"ng",
+            "nep":"ne",
+            "nno":"nn",
+            "nob":"nb",
+            "nor":"no",
+            "nya":"ny",
+            "oci":"oc",
+            "oji":"oj",
+            "ori":"or",
+            "orm":"om",
+            "oss":"os",
+            "pan":"pa",
+            "pli":"pi",
+            "pol":"pl",
+            "por":"pt",
+            "pus":"ps",
+            "que":"qu",
+            "roh":"rm",
+            "rum":"ro", "ron":"ro",
+            "run":"rn",
+            "rus":"ru",
+            "sag":"sg",
+            "san":"sa",
+            "sin":"si",
+            "slo":"sk", "slk":"sk",
+            "slv":"sl",
+            "sme":"se",
+            "smo":"sm",
+            "sna":"sn",
+            "snd":"sd",
+            "som":"so",
+            "sot":"st",
+            "spa":"es",
+            "srd":"sc",
+            "srp":"sr",
+            "ssw":"ss",
+            "sun":"su",
+            "swa":"sw",
+            "swe":"sv",
+            "tah":"ty",
+            "tam":"ta",
+            "tat":"tt",
+            "tel":"te",
+            "tgk":"tg",
+            "tgl":"tl",
+            "tha":"th",
+            "tir":"ti",
+            "ton":"to",
+            "tsn":"tn",
+            "tso":"ts",
+            "tuk":"tk",
+            "tur":"tr",
+            "twi":"tw",
+            "uig":"ug",
+            "ukr":"uk",
+            "urd":"ur",
+            "uzb":"uz",
+            "ven":"ve",
+            "vie":"vi",
+            "vol":"vo",
+            "wln":"wa",
+            "wol":"wo",
+            "xho":"xh",
+            "yid":"yi",
+            "yor":"yo",
+            "zha":"za",
+            "zul":"zu"
+            }
+        iso639_2 = iso639_2.lower() # make lower case
+        if iso639_2 in mappings.keys():
+            iso639_1 = mappings[iso639_2]
+        else:
+            iso639_1 = "en" #default
+        return iso639_1
     
         

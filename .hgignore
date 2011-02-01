@@ -1,5 +1,7 @@
 .DS_Store
 .xml
 .pyc
+.project
+.pydevproject
 lib/
 output/
