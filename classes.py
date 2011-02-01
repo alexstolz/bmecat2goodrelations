@@ -9,7 +9,6 @@ Copyright (c) 2011 Universitaet der Bundeswehr. All rights reserved.
 Author: Alex Stolz
 Organization: E-Business and Web Science Research Group
 """
-
 class Catalog():
     """Catalog settings"""
     def __init__(self):
@@ -37,6 +36,7 @@ class BusinessEntity():
         self.page = ""
         self.duns = ""
         self.gln = ""
+        self.offers = [] # will contain all offering ids of be
 
 class Offer():
     """Offering class"""
@@ -54,9 +54,18 @@ class Offer():
         self.product_quantity = "" # eligibleQuantity min
         self.eligibleRegions = ""
         self.ean = ""
+        self.gtin = ""
         self.manufacturer_id = ""
         self.manufacturer_name = ""
         self.taxes = 0
+        self.features = [] # array of feature classes
+        
+class Feature():
+    """Class for product features"""
+    def __init__(self):
+        self.name = ""
+        self.value = ""
+        self.unit = "" # if no unit given, then a qualitativevalueproperty, else quantitativevalueproperty
 
 class Tag(): 
     """Class carrying tag metadata"""
