@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 """parser.py
 
 Parser module
@@ -12,6 +14,7 @@ Organization: E-Business and Web Science Research Group
 import xml.sax
 import sys
 from classes import *
+import codecs
 
 class Parser:
     """Parser class"""
@@ -21,6 +24,16 @@ class Parser:
         self.catalog = serializer.catalog
         self.search = "be" # initialize to be, get modifications from parse function
         self.offers = [] # will contain offer ids for attachment to be
+        self.catalog_hierarchy = [] # will contain full catalog hierarchy
+        
+    def processCatalog(self, subtop, top, tag):
+        if subtop == "CATALOG_STRUCTURE":
+            if top == "GROUP_ID":
+                self.catalog_group.id = tag.content
+            elif top == "GROUP_NAME":
+                self.catalog_group.name = tag.content
+            elif top == "PARENT_ID":
+                self.catalog_group.parent_id = tag.content
         
     def processCompany(self, subtop, top, tag):
         if subtop == "PARTY" or subtop == "SUPPLIER" or subtop == "BUYER":
@@ -102,7 +115,7 @@ class Parser:
                 else:
                     self.offer.taxes = "true"
     
-    def processData(self, tag, product_open, company_open, feature_open):
+    def processData(self, tag, product_open, company_open, feature_open, catalog_open):
         """Catch information on-the-fly and store as objects"""
         top = tag.stack[-1]
         subtop = None
@@ -118,6 +131,14 @@ class Parser:
             elif top == "TERRITORY": self.catalog.eligibleRegions.append(tag.content)
             
         if self.search == "be":
+            # serialize catalog structure when be is processed, not with offers -> is supposed to be more performant
+            if catalog_open:
+                if self.catalog_group != None:
+                    self.catalog_hierarchy.append(self.catalog_group)
+                self.catalog_group = CatalogGroup()
+            # process catalog structure
+            self.processCatalog(subtop, top, tag)
+            
             # business entity tag has been opened immediately before
             if company_open:
                 if self.be != None and self.be.type == "supplier": # consider suppliers only
@@ -134,7 +155,7 @@ class Parser:
                     self.offer.features.append(self.feature)
                 self.feature = Feature()
             # product tag has been opened immediately before
-            if product_open and self.search == "offer":
+            if product_open: # and self.search == "offer":
                 if self.offer != None:
                     self.serializer.store(self.offer, "offer")
                     self.offers.append(self.offer.id)
@@ -152,6 +173,7 @@ class Parser:
             self.product_open = False # when True, product tag has been opened immediately
             self.company_open = False # when True, company tag has been opened immediately
             self.feature_open = False # when True, feature tag has been opened immediately
+            self.catalog_open = False # when True, catalog structure tag has been opened immediately
         
         def startElement(self, name, attrs):
             """This function gets called on every tag opening event"""
@@ -164,6 +186,8 @@ class Parser:
                 self.company_open = True
             elif name == "FEATURE":
                 self.feature_open = True
+            elif name == "CATALOG_STRUCTURE":
+                self.catalog_open = True
             self.content = ""
             
         def characters(self, ch):
@@ -172,12 +196,13 @@ class Parser:
     
         def endElement(self, name):
             """This function gets called on every tag closing event"""
-            tag = Tag(self.stack, self.attrs, xml.sax.saxutils.unescape(self.content, {"&szlig;":"ss", "&auml;":"ae", "&ouml;":"oe", "&uuml;":"ue", "&Auml;":"Ae", "&Ouml;":"Oe", "&Uuml;":"Ue"}))
-            self.outer.processData(tag, self.product_open, self.company_open, self.feature_open)
+            tag = Tag(self.stack, self.attrs, xml.sax.saxutils.unescape(self.content, {"&szlig;":u"ß", "&auml;":u"ä", "&ouml;":u"ö", "&uuml;":u"ü", "&Auml;":u"Ä", "&Ouml;":u"Ö", "&Uuml;":u"Ü"}))
+            self.outer.processData(tag, self.product_open, self.company_open, self.feature_open, self.catalog_open)
             # invalidate that tag has been opened
             self.product_open = False
             self.company_open = False
             self.feature_open = False
+            self.catalog_open = False
             self.stack.pop()
      
      
@@ -187,10 +212,11 @@ class Parser:
         self.be = None
         self.offer = None
         self.feature = None
+        self.catalog_group = None
         
         # parse
         parser = xml.sax.make_parser()
-        parser.setFeature("http://xml.org/sax/features/external-general-entities",False)
+        parser.setFeature("http://xml.org/sax/features/external-general-entities", False)
         parser.setContentHandler(self.EventHandler(self))
         parser.parse(open(xml_file, "r"))
         
@@ -203,3 +229,6 @@ class Parser:
         if self.be != None:
             self.be.offers = self.offers
             self.serializer.store(self.be, "be")
+        if len(self.catalog_hierarchy) > 0 and self.catalog_group != None:
+            self.catalog_hierarchy.append(self.catalog_group)
+            self.serializer.store(self.catalog_hierarchy, "catalog")

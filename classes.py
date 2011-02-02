@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 """classes.py
 
 Defines classes
@@ -17,6 +19,13 @@ class Catalog():
         self.validFrom = ""
         self.validThrough = ""
         self.eligibleRegions = []
+        
+class CatalogGroup():
+    """Catalog group class"""
+    def __init__(self):
+        self.id = ""
+        self.parent_id = ""
+        self.name = ""
 
 class BusinessEntity():
     """BusinessEntity class"""

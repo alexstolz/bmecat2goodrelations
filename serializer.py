@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 """serializer.py
 
 Serializes arrays of classes as RDF/XML
@@ -69,7 +71,7 @@ class Serializer:
         <sc:datasetURI>"+self.base_uri+"offer_"+object.id+".rdf</sc:datasetURI>\n\
         <sc:linkedDataPrefix slicing=\"subject-object\">"+self.base_uri+"offer_"+object.id+".rdf#</sc:linkedDataPrefix>\n\
         <sc:sampleURI>"+self.base_uri+"offer_"+object.id+".rdf#offer</sc:sampleURI>\n\
-        <sc:dataDumpLocation>"+self.base_uri+"dump.rdf</sc:dataDumpLocation>\n\
+        <sc:dataDumpLocation>"+self.base_uri+"dump.nt</sc:dataDumpLocation>\n\
         <changefreq>weekly</changefreq>\n\
     </sc:dataset>\n")
             print "wrote", "(offer)", object.description
@@ -83,10 +85,23 @@ class Serializer:
         <sc:datasetURI>"+self.base_uri+"company.rdf</sc:datasetURI>\n\
         <sc:linkedDataPrefix slicing=\"subject-object\">"+self.base_uri+"company.rdf#</sc:linkedDataPrefix>\n\
         <sc:sampleURI>"+self.base_uri+"company.rdf#be_"+re.sub(r"[^a-zA-Z0-9]", "", "".join(str(object.legalName).split()))+"</sc:sampleURI>\n\
-        <sc:dataDumpLocation>"+self.base_uri+"dump.rdf</sc:dataDumpLocation>\n\
+        <sc:dataDumpLocation>"+self.base_uri+"dump.nt</sc:dataDumpLocation>\n\
         <changefreq>weekly</changefreq>\n\
     </sc:dataset>\n")
             print "wrote", "(company)", object.legalName
+            
+        elif object_type == "catalog":
+            file = open(self.output_folder+"/catalog.rdf", "w")
+            file.write(self.serializeCatalogStructure(object, rdf_format="pretty-xml"))
+            self.dump.write(self.serializeCatalogStructure(object, rdf_format="nt"))
+            self.sitemap.write("    <sc:dataset>\n\
+        <sc:datasetLabel>BMECat Catalog Structure</sc:datasetLabel>\n\
+        <sc:datasetURI>"+self.base_uri+"catalog.rdf</sc:datasetURI>\n\
+        <sc:linkedDataPrefix slicing=\"subject-object\">"+self.base_uri+"catalog.rdf#</sc:linkedDataPrefix>\n\
+        <sc:sampleURI>"+self.base_uri+"catalog.rdf#be_</sc:sampleURI>\n\
+        <sc:dataDumpLocation>"+self.base_uri+"dump.nt</sc:dataDumpLocation>\n\
+        <changefreq>weekly</changefreq>\n\
+    </sc:dataset>\n")
         
     
     def triple(self, g, subject, predicate, object, datatype=None, language=None):
@@ -106,7 +121,30 @@ class Serializer:
                 return
         # create triple in graph g
         g.add((subject, predicate, object))
-    
+        
+    def serializeCatalogStructure(self, catalog_hierarchy, rdf_format):
+        """Serialize the catalog"""
+        g = Graph()
+        g.bind("owl", owl)
+        
+        selfns = self.base_uri+"catalog.rdf#"
+        g.bind("self", selfns)
+        lang = self.mapLanguage(self.catalog.lang)
+        if self.lang:
+            lang = self.lang
+        
+        for catalog_group in catalog_hierarchy:
+            id = re.sub(r"[^a-zA-Z0-9]", "", catalog_group.id)
+            parent_id = re.sub(r"[^a-zA-Z0-9]", "", catalog_group.parent_id)
+            idref = URIRef(selfns+id)
+            parent_idref = URIRef(selfns+parent_id)
+            
+            self.triple(g, idref, RDF.type, OWL.Class)
+            self.triple(g, idref, RDFS.label, Literal(catalog_group.name), language=lang)
+            self.triple(g, idref, RDFS.subClassOf, parent_idref)
+            
+        return g.serialize(format=rdf_format)
+            
     def serializeBusinessEntity(self, be, rdf_format):
         """Serialize a single business entity"""
         g = Graph()
