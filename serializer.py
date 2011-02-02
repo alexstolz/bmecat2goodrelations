@@ -101,6 +101,9 @@ class Serializer:
             # if no language tag is given, check if datatype is available
             elif datatype != None:
                 object.datatype = datatype
+        elif type(object) == URIRef:
+            if object.title() == "":
+                return
         # create triple in graph g
         g.add((subject, predicate, object))
     
