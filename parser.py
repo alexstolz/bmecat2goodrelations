@@ -25,15 +25,23 @@ class Parser:
         self.search = "be" # initialize to be, get modifications from parse function
         self.offers = [] # will contain offer ids for attachment to be
         self.catalog_hierarchy = [] # will contain full catalog hierarchy
+        self.article2categorygroup = Article2CatalogGroupMap()
         
     def processCatalog(self, subtop, top, tag):
-        if subtop == "CATALOG_STRUCTURE":
+        if subtop == "CATALOG_STRUCTURE" and self.catalog_group != None:
             if top == "GROUP_ID":
                 self.catalog_group.id = tag.content
             elif top == "GROUP_NAME":
                 self.catalog_group.name = tag.content
+            elif top == "GROUP_DESCRIPTION":
+                self.catalog_group.description = tag.content
             elif top == "PARENT_ID":
                 self.catalog_group.parent_id = tag.content
+        elif subtop == "PRODUCT_TO_CATALOGGROUP_MAP" or subtop == "ARTICLE_TO_CATALOGGROUP_MAP":
+            if top == "PROD_ID" or top == "ART_ID":
+                self.article2categorygroup.article_id = tag.content
+            elif top == "CATALOG_GROUP_ID":
+                self.article2categorygroup.cataloggroup_id = tag.content
         
     def processCompany(self, subtop, top, tag):
         if subtop == "PARTY" or subtop == "SUPPLIER" or subtop == "BUYER":
@@ -115,7 +123,7 @@ class Parser:
                 else:
                     self.offer.taxes = "true"
     
-    def processData(self, tag, product_open, company_open, feature_open, catalog_open):
+    def processData(self, tag, product_open, company_open, feature_open, catalog_open, mapping_open):
         """Catch information on-the-fly and store as objects"""
         top = tag.stack[-1]
         subtop = None
@@ -130,7 +138,17 @@ class Parser:
             elif top == "VALID_END_DATE": self.catalog.validThrough = tag.content
             elif top == "TERRITORY": self.catalog.eligibleRegions.append(tag.content)
             
-        if self.search == "be":
+        if self.search == "cataloggroup":
+            # mappings to catalog groups
+            if mapping_open:
+                if self.article2categorygroup.article_id != "" and self.article2categorygroup.cataloggroup_id != "":
+                    self.article2categorygroup.save()
+                self.article2categorygroup.article_id = ""
+                self.article2categorygroup.cataloggroup_id = ""
+            # process article to catalog group mapping
+            self.processCatalog(subtop, top, tag)
+        
+        elif self.search == "be":
             # serialize catalog structure when be is processed, not with offers -> is supposed to be more performant
             if catalog_open:
                 if self.catalog_group != None:
@@ -157,6 +175,7 @@ class Parser:
             # product tag has been opened immediately before
             if product_open: # and self.search == "offer":
                 if self.offer != None:
+                    self.offer.cataloggroup_ids = self.article2categorygroup.get(self.offer.id)
                     self.serializer.store(self.offer, "offer")
                     self.offers.append(self.offer.id)
                 self.offer = Offer()
@@ -174,6 +193,7 @@ class Parser:
             self.company_open = False # when True, company tag has been opened immediately
             self.feature_open = False # when True, feature tag has been opened immediately
             self.catalog_open = False # when True, catalog structure tag has been opened immediately
+            self.mapping_open = False
         
         def startElement(self, name, attrs):
             """This function gets called on every tag opening event"""
@@ -188,6 +208,8 @@ class Parser:
                 self.feature_open = True
             elif name == "CATALOG_STRUCTURE":
                 self.catalog_open = True
+            elif name == "PRODUCT_TO_CATALOGGROUP_MAP" or name == "ARTICLE_TO_CATALOGGROUP_MAP":
+                self.mapping_open = True
             self.content = ""
             
         def characters(self, ch):
@@ -197,12 +219,13 @@ class Parser:
         def endElement(self, name):
             """This function gets called on every tag closing event"""
             tag = Tag(self.stack, self.attrs, xml.sax.saxutils.unescape(self.content, {"&szlig;":u"ß", "&auml;":u"ä", "&ouml;":u"ö", "&uuml;":u"ü", "&Auml;":u"Ä", "&Ouml;":u"Ö", "&Uuml;":u"Ü"}))
-            self.outer.processData(tag, self.product_open, self.company_open, self.feature_open, self.catalog_open)
+            self.outer.processData(tag, self.product_open, self.company_open, self.feature_open, self.catalog_open, self.mapping_open)
             # invalidate that tag has been opened
             self.product_open = False
             self.company_open = False
             self.feature_open = False
             self.catalog_open = False
+            self.mapping_open = False
             self.stack.pop()
      
      
@@ -225,7 +248,7 @@ class Parser:
             self.offer.features.append(self.feature)
         if self.offer != None:
             self.serializer.store(self.offer, "offer")
-            self.offers.append(self.offer.id)        
+            self.offers.append(self.offer.id)
         if self.be != None:
             self.be.offers = self.offers
             self.serializer.store(self.be, "be")

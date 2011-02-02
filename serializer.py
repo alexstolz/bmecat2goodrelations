@@ -134,13 +134,14 @@ class Serializer:
             lang = self.lang
         
         for catalog_group in catalog_hierarchy:
-            id = re.sub(r"[^a-zA-Z0-9]", "", catalog_group.id)
-            parent_id = re.sub(r"[^a-zA-Z0-9]", "", catalog_group.parent_id)
+            id = "c_"+re.sub(r"[^a-zA-Z0-9]", "", catalog_group.id)
+            parent_id = "c_"+re.sub(r"[^a-zA-Z0-9]", "", catalog_group.parent_id)
             idref = URIRef(selfns+id)
             parent_idref = URIRef(selfns+parent_id)
             
             self.triple(g, idref, RDF.type, OWL.Class)
             self.triple(g, idref, RDFS.label, Literal(catalog_group.name), language=lang)
+            self.triple(g, idref, RDFS.comment, Literal(catalog_group.description), language=lang)
             self.triple(g, idref, RDFS.subClassOf, parent_idref)
             
         return g.serialize(format=rdf_format)
@@ -197,6 +198,7 @@ class Serializer:
         g = Graph()
         g.bind("owl", owl)
         g.bind("gr", gr)
+        g.bind("cat", self.base_uri+"catalog.rdf#")
         
         identifier = re.sub(r"[^a-zA-Z0-9]", "", offer.id)
         selfns = self.base_uri+"offer_"+identifier+".rdf#"
@@ -300,7 +302,7 @@ class Serializer:
             feature_prop_id = URIRef(selfns+"prop_"+fidentifier)
             feature_id = URIRef(selfns+fidentifier)
             # create suitable object property
-            self.triple(g, feature_prop_id, RDF.type, URIRef(OWL.ObjectProperty))
+            self.triple(g, feature_prop_id, RDF.type, OWL.ObjectProperty)
             if qualitative:
                 self.triple(g, feature_prop_id, RDFS.subPropertyOf, GR.qualitativeProductOrServiceProperty)
                 self.triple(g, feature_prop_id, RDFS.range, GR.QualitativeValue)
@@ -318,6 +320,11 @@ class Serializer:
                 self.triple(g, feature_id, GR.hasMinValueFloat, Literal(feature.value), datatype=XSD.float)
             self.triple(g, feature_id, GR.name, Literal(feature.name+" is "+feature.value), language="en")
             self.triple(g, feature_id, GR.description, Literal("The product feature _"+feature.name+"_ has the value _"+feature.value+feature.unit+"_"), language="en")
+        # catalog
+        for cataloggroup_id in offer.cataloggroup_ids:
+            #self.triple(g, o_about, RDF.type, URIRef(self.base_uri+"catalog.rdf#c_"+cataloggroup_id))
+            self.triple(g, o_product, RDF.type, URIRef(self.base_uri+"catalog.rdf#c_"+cataloggroup_id))
+            self.triple(g, o_model, RDF.type, URIRef(self.base_uri+"catalog.rdf#c_"+cataloggroup_id))
         
         return g.serialize(format=rdf_format)
     

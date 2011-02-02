@@ -77,6 +77,7 @@ def main():
     # parse and serialize on-the-fly
     serializerobject = serializer.Serializer(output_folder, base_uri, catalog, lang)
     parserobject = parser.Parser(serializerobject)
+    parserobject.parse(input_file, search="cataloggroup") # mappings between articles and catalog groups
     parserobject.parse(input_file, search="offer")
     parserobject.parse(input_file, search="be")
 

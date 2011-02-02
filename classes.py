@@ -26,6 +26,24 @@ class CatalogGroup():
         self.id = ""
         self.parent_id = ""
         self.name = ""
+        self.description = ""
+        
+class Article2CatalogGroupMap():
+    """Mapping between articles and catalog groups"""
+    def __init__(self):
+        self.mapping = dict()
+        self.article_id = ""
+        self.cataloggroup_id = ""
+        
+    def save(self):
+        if not self.article_id in self.mapping.keys():
+            self.mapping[self.article_id] = list()
+        self.mapping[self.article_id].append(self.cataloggroup_id)
+        
+    def get(self, article_id):
+        if article_id in self.mapping.keys():
+            return self.mapping[article_id]
+        return []
 
 class BusinessEntity():
     """BusinessEntity class"""
@@ -73,6 +91,7 @@ class Offer():
         self.manufacturer_name = ""
         self.taxes = "true"
         self.features = [] # array of feature classes
+        self.cataloggroup_ids = []
         
 class Feature():
     """Class for product features"""
