@@ -60,12 +60,10 @@ class Serializer:
         
     def store(self, object, object_type):
         """Write serialization variants to files"""
-        self.be_supplier = None
-        
         if object_type == "offer":
             file = open(self.output_folder+"/offer_"+object.id+".rdf", "w")
-            file.write(self.serializeOffer(object, self.be_supplier, rdf_format="pretty-xml"))
-            self.dump.write(self.serializeOffer(object, self.be_supplier, rdf_format="nt"))
+            file.write(self.serializeOffer(object, rdf_format="pretty-xml"))
+            self.dump.write(self.serializeOffer(object, rdf_format="nt"))
             self.sitemap.write("    <sc:dataset>\n\
         <sc:datasetLabel>Offering Metadata for product offer \""+object.id+"\"</sc:datasetLabel>\n\
         <sc:datasetURI>"+self.base_uri+"offer_"+object.id+".rdf</sc:datasetURI>\n\
@@ -75,11 +73,8 @@ class Serializer:
         <changefreq>weekly</changefreq>\n\
     </sc:dataset>\n")
             print "wrote", "(offer)", object.description
-            # TODO: write id into array, later append to business entity..
             
         elif object_type == "be":
-            if object.type == "supplier": # supplier offers the offerings
-                self.be_supplier = object
             file = open(self.output_folder+"/company.rdf", "w")
             file.write(self.serializeBusinessEntity(object, rdf_format="pretty-xml"))
             self.dump.write(self.serializeBusinessEntity(object, rdf_format="nt"))
@@ -156,7 +151,7 @@ class Serializer:
     
         return g.serialize(format=rdf_format)
         
-    def serializeOffer(self, offer, be_supplier, rdf_format):
+    def serializeOffer(self, offer, rdf_format):
         """Serialize a single offering"""
         g = Graph()
         g.bind("owl", owl)
@@ -184,10 +179,6 @@ class Serializer:
         o_manufacturer = URIRef(selfns+"manufacturer_"+manufacturer_id)
         
         # annotate graph
-        # linkage with business entity
-        if self.be_supplier:
-            beidentifier = re.sub(r"[^a-zA-Z0-9]", "", "".join(str(self.be_supplier.legalName).split()))
-            self.triple(g, URIRef(selfns+"be_"+beidentifier), GR.offers, o_about)
         # offer level
         self.triple(g, o_about, RDF.type, GR.Offering)
         self.triple(g, o_about, GR.name, Literal(offer.description), language=lang)
@@ -211,11 +202,8 @@ class Serializer:
             self.triple(g, o_quantity, RDF.type, GR.QuantitativeValueFloat)
             self.triple(g, o_quantity, GR.hasUnitOfMeasurement, Literal(offer.order_uom), datatype=XSD.string)
             self.triple(g, o_quantity, GR.hasMinValueFloat, Literal(offer.order_units), datatype=XSD.float)
-        # hasBusinessFunction -> get from if supplier, buyer or party role was used
-        if self.be_supplier and self.be_supplier.type == "buyer":
-            self.triple(g, o_about, GR.hasBusinessFunction, GR.Buy)
-        else:
-            self.triple(g, o_about, GR.hasBusinessFunction, GR.Sell)
+        # hasBusinessFunction
+        self.triple(g, o_about, GR.hasBusinessFunction, GR.Sell)
         # pricespecification level
         self.triple(g, o_about, GR.hasPriceSpecification, o_price)
         self.triple(g, o_price, RDF.type, GR.UnitPriceSpecification)
@@ -287,8 +275,8 @@ class Serializer:
                 self.triple(g, feature_id, RDF.type, GR.QuantitativeValueFloat)
                 self.triple(g, feature_id, GR.hasUnitOfMeasurement, Literal(feature.unit), datatype=XSD.string)
                 self.triple(g, feature_id, GR.hasMinValueFloat, Literal(feature.value), datatype=XSD.float)
-            self.triple(g, feature_id, GR.name, Literal(feature.name+" "+feature.value), language="en")
-            self.triple(g, feature_id, GR.description, Literal("The product feature _"+feature.name+"_ has got the value _"+feature.value+"_"), language="en")
+            self.triple(g, feature_id, GR.name, Literal(feature.name+" is "+feature.value), language="en")
+            self.triple(g, feature_id, GR.description, Literal("The product feature _"+feature.name+"_ has the value _"+feature.value+feature.unit+"_"), language="en")
         
         return g.serialize(format=rdf_format)
     

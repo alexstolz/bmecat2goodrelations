@@ -93,9 +93,10 @@ class Parser:
                 self.feature.value = tag.content
             elif top == "FUNIT":
                 self.feature.unit = tag.content
-        elif top == "PRODUCT_PRICE" or top == "ARTICLE_PRICE":
-            if "type" in tag.attrs.keys():
-                attr_type = tag.attrs['type']
+        
+        if top == "PRODUCT_PRICE" or top == "ARTICLE_PRICE":
+            if "price_type" in tag.attrs.keys():
+                attr_type = tag.attrs['price_type']
                 if attr_type in ["net_list", "net_customer", "net_customer_exp", "net"]:
                     self.offer.taxes = "false"
                 else:
@@ -119,7 +120,7 @@ class Parser:
         if self.search == "be":
             # business entity tag has been opened immediately before
             if company_open:
-                if self.be != None:
+                if self.be != None and self.be.type == "supplier": # consider suppliers only
                     self.be.offers = self.offers
                     self.serializer.store(self.be, "be")
                 self.be = BusinessEntity()
@@ -188,6 +189,7 @@ class Parser:
         
         # parse
         parser = xml.sax.make_parser()
+        parser.setFeature("http://xml.org/sax/features/external-general-entities",False)
         parser.setContentHandler(self.EventHandler(self))
         parser.parse(open(xml_file, "r"))
         
