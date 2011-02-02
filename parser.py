@@ -164,19 +164,20 @@ class Parser:
                 self.company_open = True
             elif name == "FEATURE":
                 self.feature_open = True
+            self.content = ""
             
         def characters(self, ch):
             """This function gets called for each literal content within a tag"""
-            ch = " ".join(ch.split())
-            tag = Tag(self.stack, self.attrs, ch)
+            self.content = self.content + " ".join(ch.split())
+    
+        def endElement(self, name):
+            """This function gets called on every tag closing event"""
+            tag = Tag(self.stack, self.attrs, xml.sax.saxutils.unescape(self.content, {"&szlig;":"ss", "&auml;":"ae", "&ouml;":"oe", "&uuml;":"ue", "&Auml;":"Ae", "&Ouml;":"Oe", "&Uuml;":"Ue"}))
             self.outer.processData(tag, self.product_open, self.company_open, self.feature_open)
             # invalidate that tag has been opened
             self.product_open = False
             self.company_open = False
             self.feature_open = False
-    
-        def endElement(self, name):
-            """This function gets called on every tag closing event"""
             self.stack.pop()
      
      
