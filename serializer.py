@@ -133,8 +133,8 @@ class Serializer:
             lang = self.lang
         
         for catalog_group in catalog_hierarchy:
-            id = "c_"+re.sub(r"[^a-zA-Z0-9]", "", catalog_group.id)
-            parent_id = "c_"+re.sub(r"[^a-zA-Z0-9]", "", catalog_group.parent_id)
+            id = re.sub(r"[^a-zA-Z0-9]", "", catalog_group.id)
+            parent_id = re.sub(r"[^a-zA-Z0-9]", "", catalog_group.parent_id)
             idref = URIRef(selfns+id)
             parent_idref = URIRef(selfns+parent_id)
             
@@ -322,8 +322,8 @@ class Serializer:
         # catalog
         for cataloggroup_id in offer.cataloggroup_ids:
             #self.triple(g, o_about, RDF.type, URIRef(self.base_uri+"catalog.rdf#c_"+cataloggroup_id))
-            self.triple(g, o_product, RDF.type, URIRef(self.base_uri+"catalog.rdf#c_"+cataloggroup_id))
-            self.triple(g, o_model, RDF.type, URIRef(self.base_uri+"catalog.rdf#c_"+cataloggroup_id))
+            self.triple(g, o_product, RDF.type, URIRef(self.base_uri+"catalog.rdf#"+cataloggroup_id))
+            self.triple(g, o_model, RDF.type, URIRef(self.base_uri+"catalog.rdf#"+cataloggroup_id))
         
         return g.serialize(format=rdf_format)
     

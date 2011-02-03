@@ -31,18 +31,21 @@ class Parser:
     def processCatalog(self, subtop, top, tag):
         if subtop == "CATALOG_STRUCTURE" and self.catalog_group != None:
             if top == "GROUP_ID":
-                self.catalog_group.id = tag.content
+                if tag.content != "":
+                    self.catalog_group.id = "gid"+tag.content
             elif top == "GROUP_NAME":
                 self.catalog_group.name = tag.content
             elif top == "GROUP_DESCRIPTION":
                 self.catalog_group.description = tag.content
             elif top == "PARENT_ID":
-                self.catalog_group.parent_id = tag.content
+                if tag.content != "":
+                    self.catalog_group.parent_id = "gid"+tag.content
         elif subtop == "PRODUCT_TO_CATALOGGROUP_MAP" or subtop == "ARTICLE_TO_CATALOGGROUP_MAP":
             if top == "PROD_ID" or top == "ART_ID":
                 self.article2categorygroup.article_id = tag.content
             elif top == "CATALOG_GROUP_ID":
-                self.article2categorygroup.cataloggroup_id = tag.content
+                if tag.content != "":
+                    self.article2categorygroup.cataloggroup_id = "gid"+tag.content
         
     def processCompany(self, subtop, top, tag):
         if subtop == "PARTY" or subtop == "SUPPLIER" or subtop == "BUYER":
