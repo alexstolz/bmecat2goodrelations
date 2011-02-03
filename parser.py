@@ -15,6 +15,7 @@ import xml.sax
 import sys
 from classes import *
 import codecs
+import time
 
 class Parser:
     """Parser class"""
@@ -238,10 +239,13 @@ class Parser:
         self.catalog_group = None
         
         # parse
+        now = time.time()
+        print "start parsing with", search
         parser = xml.sax.make_parser()
         parser.setFeature("http://xml.org/sax/features/external-general-entities", False)
         parser.setContentHandler(self.EventHandler(self))
         parser.parse(open(xml_file, "r"))
+        print "finished with", search, "after", str(time.time()-now), "seconds"
         
         # write serialization for last found bes and offers
         if self.feature != None:

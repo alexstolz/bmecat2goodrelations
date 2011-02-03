@@ -74,7 +74,6 @@ class Serializer:
         <sc:dataDumpLocation>"+self.base_uri+"dump.nt</sc:dataDumpLocation>\n\
         <changefreq>weekly</changefreq>\n\
     </sc:dataset>\n")
-            print "wrote", "(offer)", object.description
             
         elif object_type == "be":
             file = open(self.output_folder+"/company.rdf", "w")
