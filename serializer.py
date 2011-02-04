@@ -329,9 +329,9 @@ class Serializer:
             self.triple(g, feature_id, GR.description, Literal("The product feature _"+feature.name+"_ has the value _"+feature.value+feature.unit+"_"), language="en")
         # catalog
         for cataloggroup_id in offer.cataloggroup_ids:
-            #self.triple(g, o_about, RDF.type, URIRef(self.base_uri+"catalog.rdf#c_"+cataloggroup_id))
-            self.triple(g, o_product, RDF.type, URIRef(self.base_uri+"catalog.rdf#"+cataloggroup_id+"_tax"))
-            self.triple(g, o_model, RDF.type, URIRef(self.base_uri+"catalog.rdf#"+cataloggroup_id+"_tax"))
+            # make productorservice...instance and productorservicemodel instances of gen classes
+            self.triple(g, o_product, RDF.type, URIRef(self.base_uri+"catalog.rdf#"+cataloggroup_id+"_gen"))
+            self.triple(g, o_model, RDF.type, URIRef(self.base_uri+"catalog.rdf#"+cataloggroup_id+"_gen"))
         
         return g.serialize(format=rdf_format)
     
