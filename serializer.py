@@ -135,13 +135,21 @@ class Serializer:
         for catalog_group in catalog_hierarchy:
             id = re.sub(r"[^a-zA-Z0-9]", "", catalog_group.id)
             parent_id = re.sub(r"[^a-zA-Z0-9]", "", catalog_group.parent_id)
-            idref = URIRef(selfns+id)
-            parent_idref = URIRef(selfns+parent_id)
+            idref_tax = URIRef(selfns+id+"_tax")
+            parent_idref_tax = URIRef(selfns+parent_id+"_tax")
+            idref_gen = URIRef(selfns+id+"_gen") # gen has no hierarchy, hence no parent id for gen classes
             
-            self.triple(g, idref, RDF.type, OWL.Class)
-            self.triple(g, idref, RDFS.label, Literal(catalog_group.name), language=lang)
-            self.triple(g, idref, RDFS.comment, Literal(catalog_group.description), language=lang)
-            self.triple(g, idref, RDFS.subClassOf, parent_idref)
+            # tax
+            self.triple(g, idref_tax, RDF.type, OWL.Class)
+            self.triple(g, idref_tax, RDFS.subClassOf, parent_idref_tax)
+            self.triple(g, idref_tax, RDFS.label, Literal(catalog_group.name), language=lang)
+            self.triple(g, idref_tax, RDFS.comment, Literal(catalog_group.description), language=lang)
+            # gen
+            self.triple(g, idref_gen, RDFS.type, OWL.Class)
+            self.triple(g, idref_gen, RDFS.subClassOf, GR.ProductOrService)
+            self.triple(g, idref_gen, RDFS.subClassOf, idref_tax)
+            self.triple(g, idref_gen, RDFS.label, Literal(catalog_group.name), language=lang)
+            self.triple(g, idref_gen, RDFS.comment, Literal(catalog_group.description), language=lang)
             
         return g.serialize(format=rdf_format)
             
@@ -322,8 +330,8 @@ class Serializer:
         # catalog
         for cataloggroup_id in offer.cataloggroup_ids:
             #self.triple(g, o_about, RDF.type, URIRef(self.base_uri+"catalog.rdf#c_"+cataloggroup_id))
-            self.triple(g, o_product, RDF.type, URIRef(self.base_uri+"catalog.rdf#"+cataloggroup_id))
-            self.triple(g, o_model, RDF.type, URIRef(self.base_uri+"catalog.rdf#"+cataloggroup_id))
+            self.triple(g, o_product, RDF.type, URIRef(self.base_uri+"catalog.rdf#"+cataloggroup_id+"_tax"))
+            self.triple(g, o_model, RDF.type, URIRef(self.base_uri+"catalog.rdf#"+cataloggroup_id+"_tax"))
         
         return g.serialize(format=rdf_format)
     

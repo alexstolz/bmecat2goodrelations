@@ -222,7 +222,9 @@ class Parser:
     
         def endElement(self, name):
             """This function gets called on every tag closing event"""
-            tag = Tag(self.stack, self.attrs, xml.sax.saxutils.unescape(self.content, {"&szlig;":u"ß", "&auml;":u"ä", "&ouml;":u"ö", "&uuml;":u"ü", "&Auml;":u"Ä", "&Ouml;":u"Ö", "&Uuml;":u"Ü"}))
+            if type(self.content) == unicode:
+                self.content = self.content.encode("utf-8")
+            tag = Tag(self.stack, self.attrs, xml.sax.saxutils.unescape(self.content, {"&szlig;":"ß", "&auml;":"ä", "&ouml;":"ö", "&uuml;":"ü", "&Auml;":"Ä", "&Ouml;":"Ö", "&Uuml;":"Ü"}))
             self.outer.processData(tag, self.product_open, self.company_open, self.feature_open, self.catalog_open, self.mapping_open)
             # invalidate that tag has been opened
             self.product_open = False
