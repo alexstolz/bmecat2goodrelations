@@ -142,13 +142,23 @@ class Serializer:
             # tax
             self.triple(g, idref_tax, RDF.type, OWL.Class)
             self.triple(g, idref_tax, RDFS.subClassOf, parent_idref_tax)
-            self.triple(g, idref_tax, RDFS.label, Literal(catalog_group.name), language=lang)
+            label_tax = ""
+            if catalog_group.name != "":
+                label_tax = catalog_group.name+" [Taxonomy Concept: Anything that may be an instance of this category in any context]"
+            else:
+                label_tax = "[Taxonomy Concept: Anything that may be an instance of this category in any context]"
+            self.triple(g, idref_tax, RDFS.label, Literal(label_tax), language=lang)
             self.triple(g, idref_tax, RDFS.comment, Literal(catalog_group.description), language=lang)
             # gen
             self.triple(g, idref_gen, RDFS.type, OWL.Class)
             self.triple(g, idref_gen, RDFS.subClassOf, GR.ProductOrService)
             self.triple(g, idref_gen, RDFS.subClassOf, idref_tax)
-            self.triple(g, idref_gen, RDFS.label, Literal(catalog_group.name), language=lang)
+            label_gen = ""
+            if catalog_group.name != "":
+                label_gen = catalog_group.name+" [Generic Concept: This type of goods]"
+            else:
+                label_gen = "[Generic Concept: This type of goods]"
+            self.triple(g, idref_gen, RDFS.label, Literal(label_gen), language=lang)
             self.triple(g, idref_gen, RDFS.comment, Literal(catalog_group.description), language=lang)
             
         return g.serialize(format=rdf_format)
