@@ -14,7 +14,6 @@ Organization: E-Business and Web Science Research Group
 import xml.sax
 import sys
 from classes import *
-import codecs
 import time
 
 class Parser:

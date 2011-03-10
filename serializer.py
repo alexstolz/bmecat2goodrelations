@@ -289,7 +289,10 @@ class Serializer:
         self.triple(g, o_taqn, GR.hasUnitOfMeasurement, Literal(offer.content_uom), datatype=XSD.string)
         # productorservice level
         self.triple(g, o_taqn, GR.typeOfGood, o_product)
-        self.triple(g, o_product, RDF.type, GR.ProductOrServicesSomeInstancesPlaceholder)
+        if self.catalog.typeOfProducts == "actual":
+            self.triple(g, o_product, RDF.type, GR.ActualProductOrServiceInstance)
+        else:
+            self.triple(g, o_product, RDF.type, GR.ProductOrServicesSomeInstancesPlaceholder)
         self.triple(g, o_product, GR.name, Literal(offer.description), language=lang)
         self.triple(g, o_product, GR.description, Literal(offer.comment), language=lang)
         self.triple(g, o_product, GR['hasEAN_UCC-13'], Literal(offer.ean), datatype=XSD.string)
@@ -544,7 +547,9 @@ class Serializer:
             "zul":"zu"
             }
         iso639_2 = iso639_2.lower() # make lower case
-        if iso639_2 in mappings.keys():
+        if len(iso639_2) == 2:
+            iso639_1 = iso639_2
+        elif iso639_2 in mappings.keys():
             iso639_1 = mappings[iso639_2]
         else:
             iso639_1 = "en" #default

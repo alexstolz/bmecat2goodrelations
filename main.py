@@ -13,7 +13,7 @@ Organization: E-Business and Web Science Research Group
 """
 
 # TODO:
-# script with command line arguments: "python main.py file.xml -o output -b http://www.self-example.com/#"
+# script with command line arguments: "python main.py file.xml -o output -b http://www.self-example.com/#" DONE
 # make py2exe, py2app
 # let user choose between ProductOrServicesSomeInstancesPlaceholder and ActualProductOrServiceInstance
 # eligibleCustomerTypes, Payment Methods, Warranty Promises?
@@ -40,24 +40,35 @@ def main():
             output_folder = arg
         elif previous == "-l":
             lang = arg
+        elif previous == "-t":
+            if arg == "actual":
+                catalog.typeOfProducts = arg
         elif previous == "" and arg[0] != '-':
             input_file = arg
         previous = ""
         if arg == "--help":
-            print "Usage:"
-            print "python main.py [-o <dir>] [-b <uri>] [-l <language>] [--help]"
-            print ""
-            print "Option parameters:"
-            print "-o <dir>\tcustomize location of output folder"
-            print "\t\t(default = output)"
-            print "-b <uri>\tdetermine base uri for deployment"
-            print "\t\t(default = http://www.example.com)"
-            print "-l <language>\t2-letter language code according to ISO 639-1"
-            print "\t\t(default = try determine from catalog)"
-            print "--help\t\tprint usage summary"
-            print ""
+            print "USAGE"
+            print "\tpython main.py [options] FILE"
+            print
+            print "OPTIONS"
+            print "\t-o <dir>\t\tcustomize location of output folder"
+            print "\t\t\t\t(default = output)"
+            print "\t-b <uri>\t\tdetermine base uri for deployment"
+            print "\t\t\t\t(default = http://www.example.com)"
+            print "\t-l <language>\t\t2-letter language code according to ISO 639-1"
+            print "\t\t\t\t(default = try determine from catalog)"
+            print "\t-t <typeOfProduct>\tconfigure the type of product"
+            print "\t\t\t\t(default = actual)"
+            print "\t\t\t\tPossible values are[1]:"
+            print "\t\t\t\t* actual: products are likely all gr:ActualProductOrServiceInstance, and"
+            print "\t\t\t\t* placeholder: products are likely all gr:ProductOrServicesSomeInstancesPlaceholder"
+            print "\t--help\t\t\tprint usage summary"
+            print
+            print
+            print "[1] http://www.heppnetz.de/ontologies/goodrelations/v1#ProductOrService"
+            print
             print "..."
-            print "LGPL licensed converter from BMECat XML to GoodRelations for Web publication"
+            print "LGPL licensed command-line script for the conversion of BMECat XML to GoodRelations for Web publishing"
             print "E-Business and Web Science Research Group, http://www.unibw.de/ebusiness/"
             print "Developer: Alex Stolz <alex.stolz@ebusiness-unibw.org>"
             print "..."
@@ -68,6 +79,8 @@ def main():
             previous = "-o"
         elif arg == "-l":
             previous = "-l"
+        elif arg == "-t":
+            previous = "-t"
             
     if not input_file:
         print "No XML input file was provided!"

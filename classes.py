@@ -19,6 +19,7 @@ class Catalog():
         self.validFrom = ""
         self.validThrough = ""
         self.eligibleRegions = []
+        self.typeOfProducts = "placeholder" # default
         
 class CatalogGroup():
     """Catalog group class"""
