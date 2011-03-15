@@ -15,6 +15,10 @@ import xml.sax
 import sys
 from classes import *
 import time
+import re
+
+mime_type = ""
+mime_source = ""
 
 class Parser:
     """Parser class"""
@@ -23,33 +27,37 @@ class Parser:
         self.serializer = serializer
         self.catalog = serializer.catalog
         self.search = "be" # initialize to be, get modifications from parse function
-        self.offers = [] # will contain offer ids for attachment to be
         self.catalog_hierarchy = [] # will contain full catalog hierarchy
         self.article2categorygroup = Article2CatalogGroupMap()
+        # initialize
+        self.be = BusinessEntity()
+        self.offer = Offer()
+        self.catalog_group = CatalogGroup()
+        self.feature = Feature()
         
     def processCatalog(self, subtop, top, tag):
         if subtop == "CATALOG_STRUCTURE" and self.catalog_group != None:
             if top == "GROUP_ID":
                 if tag.content != "":
-                    self.catalog_group.id = "gid"+tag.content
+                    self.catalog_group.id = "gid_"+re.sub(r"[^a-zA-Z0-9]", "", tag.content)
             elif top == "GROUP_NAME":
                 self.catalog_group.name = tag.content
             elif top == "GROUP_DESCRIPTION":
                 self.catalog_group.description = tag.content
             elif top == "PARENT_ID":
                 if tag.content != "":
-                    self.catalog_group.parent_id = "gid"+tag.content
+                    self.catalog_group.parent_id = "gid_"+re.sub(r"[^a-zA-Z0-9]", "", tag.content)
         elif subtop == "PRODUCT_TO_CATALOGGROUP_MAP" or subtop == "ARTICLE_TO_CATALOGGROUP_MAP":
             if top == "PROD_ID" or top == "ART_ID":
-                self.article2categorygroup.article_id = tag.content
+                self.article2categorygroup.article_id = re.sub(r"[^a-zA-Z0-9]", "", tag.content)
             elif top == "CATALOG_GROUP_ID":
                 if tag.content != "":
-                    self.article2categorygroup.cataloggroup_id = "gid"+tag.content
+                    self.article2categorygroup.cataloggroup_id = "gid_"+re.sub(r"[^a-zA-Z0-9]", "", tag.content)
         
     def processCompany(self, subtop, top, tag):
         if subtop == "PARTY" or subtop == "SUPPLIER" or subtop == "BUYER":
             if top == "PARTY_ID" or top == "SUPPLIER_ID" or top == "BUYER_ID":
-                self.be.id = tag.content
+                self.be.id = re.sub(r"[^a-zA-Z0-9]", "", tag.content)
                 if "type" in tag.attrs.keys():
                     attr_type = tag.attrs['type']
                     if attr_type == "duns":
@@ -78,18 +86,31 @@ class Parser:
     def processOffer(self, subtop, top, tag):
         if subtop == "PRODUCT" or subtop == "ARTICLE":
             if top == "SUPPLIER_PID" or top == "SUPPLIER_AID":
-                self.offer.id = tag.content
+                self.offer.id = re.sub(r"[^a-zA-Z0-9]", "", tag.content)
                 if "type" in tag.attrs.keys():
                     attr_type = tag.attrs['type']
-                    if attr_type == "gtin":
+                    if attr_type == "ean":
+                        self.offer.ean = tag.content
+                    elif attr_type == "gtin":
                         self.offer.gtin = tag.content
+                    elif attr_type == "upc":
+                        self.offer.ean = "0" + tag.content # "0" + upc -> ean
         elif subtop == "PRODUCT_DETAILS" or subtop == "ARTICLE_DETAILS":
             if top == "DESCRIPTION_SHORT": self.offer.description = tag.content
             elif top == "DESCRIPTION_LONG": self.offer.comment = tag.content
             elif top == "EAN": self.offer.ean = tag.content
+            elif top == "INTERNATIONAL_PID": # replaces EAN and SUPPLIER_ALT_PID in BMECat 2005
+                if "type" in tag.attrs.keys():
+                    attr_type = tag.attrs['type']
+                    if attr_type == "ean":
+                        self.offer.ean = tag.content
+                    elif attr_type == "gtin":
+                        self.offer.gtin = tag.content
+                    elif attr_type == "upc":
+                        self.offer.ean = "0" + tag.content # "0" + upc -> ean
             elif top == "MANUFACTURER_PID" or top == "MANUFACTURER_AID": self.offer.mpn = tag.content
             elif top == "MANUFACTURER_NAME":
-                self.offer.manufacturer_id = tag.content
+                self.offer.manufacturer_id = re.sub(r"[^a-zA-Z0-9]", "", tag.content)
                 self.offer.manufacturer_name = tag.content
             elif top == "PRODUCT_STATUS" or top == "ARTICLE_STATUS":
                 if "type" in tag.attrs.keys():
@@ -126,8 +147,10 @@ class Parser:
                 else:
                     self.offer.taxes = "true"
     
-    def processData(self, tag, product_open, company_open, feature_open, catalog_open, mapping_open):
+    def processData(self, tag, product_close, company_close, feature_close, catalog_close, mapping_close, mime_close):
         """Catch information on-the-fly and store as objects"""
+        global mime_type, mime_source
+        
         top = tag.stack[-1]
         subtop = None
         if len(tag.stack) > 1:
@@ -143,7 +166,7 @@ class Parser:
             
         if self.search == "cataloggroup":
             # mappings to catalog groups
-            if mapping_open:
+            if mapping_close:
                 if self.article2categorygroup.article_id != "" and self.article2categorygroup.cataloggroup_id != "":
                     self.article2categorygroup.save()
                 self.article2categorygroup.article_id = ""
@@ -152,35 +175,57 @@ class Parser:
             self.processCatalog(subtop, top, tag)
         
         elif self.search == "be":
+            # supports two variants, although one is wrong
+            # SUPPLIER -> MIME_INFO -> MIME -> MIME_TYPE
+            # SUPPLIER -> MIME -> MIME_TYPE (wrong usage)
+            if subtop == "SUPPLIER" or ((len(tag.stack) > 2 and tag.stack[-3] == "SUPPLIER") or (len(tag.stack) > 3 and tag.stack[-4] == "SUPPLIER")):
+                if top == "MIME_TYPE":
+                    mime_type = tag.content
+                if top == "MIME_SOURCE":
+                    mime_source = tag.content
+                if mime_close:
+                    if re.match(r"image", mime_type):
+                        self.be.images.append(mime_source)
+                    else:
+                        self.be.urls.append(mime_source)
+                    #print "mime_close for supplier", top, subtop, tag.stack[-3], tag.content
             # serialize catalog structure when be is processed, not with offers -> is supposed to be more performant
-            if catalog_open:
+            if catalog_close:
                 if self.catalog_group != None:
                     self.catalog_hierarchy.append(self.catalog_group)
                 self.catalog_group = CatalogGroup()
             # process catalog structure
             self.processCatalog(subtop, top, tag)
             
-            # business entity tag has been opened immediately before
-            if company_open:
+            # business entity tag has been closed immediately before
+            if company_close:
                 if self.be != None and self.be.type == "supplier": # consider suppliers only
-                    self.be.offers = self.offers
                     self.serializer.store(self.be, "be")
                 self.be = BusinessEntity()
             # process company
             self.processCompany(subtop, top, tag)
             
         elif self.search == "offer":
-            # feature tag has been opened
-            if feature_open:
+            if subtop == "ARTICLE" or ((len(tag.stack) > 2 and tag.stack[-3] == "ARTICLE") or (len(tag.stack) > 3 and tag.stack[-4] == "ARTICLE")):
+                if top == "MIME_TYPE":
+                    mime_type = tag.content
+                if top == "MIME_SOURCE":
+                    mime_source = tag.content
+                if mime_close:
+                    if re.match(r"image", mime_type):
+                        self.offer.images.append(mime_source)
+                    else:
+                        self.offer.urls.append(mime_source)
+            # feature tag has been closed
+            if feature_close:
                 if self.feature != None and self.offer != None:
                     self.offer.features.append(self.feature)
                 self.feature = Feature()
-            # product tag has been opened immediately before
-            if product_open: # and self.search == "offer":
+            # product tag has been closed immediately before
+            if product_close: # and self.search == "offer":
                 if self.offer != None:
                     self.offer.cataloggroup_ids = self.article2categorygroup.get(self.offer.id)
                     self.serializer.store(self.offer, "offer")
-                    self.offers.append(self.offer.id)
                 self.offer = Offer()
             # process offering
             self.processOffer(subtop, top, tag)
@@ -192,27 +237,21 @@ class Parser:
             self.outer = outer
             self.attrs = None
             self.stack = []
-            self.product_open = False # when True, product tag has been opened immediately
-            self.company_open = False # when True, company tag has been opened immediately
-            self.feature_open = False # when True, feature tag has been opened immediately
-            self.catalog_open = False # when True, catalog structure tag has been opened immediately
-            self.mapping_open = False
+            self.falsify()
+            
+        def falsify(self):
+            """Helper function to set multiple vars to False"""
+            self.product_close = False # when True, product tag has been closed immediately
+            self.company_close = False # when True, company tag has been closed immediately
+            self.feature_close = False # when True, feature tag has been closed immediately
+            self.catalog_close = False # when True, catalog structure tag has been closed immediately
+            self.mapping_close = False
+            self.mime_close = False
         
         def startElement(self, name, attrs):
             """This function gets called on every tag opening event"""
             self.attrs = attrs
             self.stack.append(name)
-            # check if offer or businessentity tag has been opened -> if opened, create new offer/business entity instance
-            if name == "PRODUCT" or name == "ARTICLE":
-                self.product_open = True
-            elif name == "PARTY" or name == "SUPPLIER" or name == "BUYER":
-                self.company_open = True
-            elif name == "FEATURE":
-                self.feature_open = True
-            elif name == "CATALOG_STRUCTURE":
-                self.catalog_open = True
-            elif name == "PRODUCT_TO_CATALOGGROUP_MAP" or name == "ARTICLE_TO_CATALOGGROUP_MAP":
-                self.mapping_open = True
             self.content = ""
             
         def characters(self, ch):
@@ -221,26 +260,32 @@ class Parser:
     
         def endElement(self, name):
             """This function gets called on every tag closing event"""
+            # check if offer or businessentity tag has been closed -> if closed, store offer/business entity instance
+            if name == "PRODUCT" or name == "ARTICLE":
+                self.product_close = True
+            elif name == "PARTY" or name == "SUPPLIER" or name == "BUYER":
+                self.company_close = True
+            elif name == "FEATURE":
+                self.feature_close = True
+            elif name == "CATALOG_STRUCTURE":
+                self.catalog_close = True
+            elif name == "PRODUCT_TO_CATALOGGROUP_MAP" or name == "ARTICLE_TO_CATALOGGROUP_MAP":
+                self.mapping_close = True
+            elif name == "MIME":
+                self.mime_close = True
+                
             if type(self.content) == unicode:
                 self.content = self.content.encode("utf-8")
             tag = Tag(self.stack, self.attrs, xml.sax.saxutils.unescape(self.content, {"&szlig;":"ß", "&auml;":"ä", "&ouml;":"ö", "&uuml;":"ü", "&Auml;":"Ä", "&Ouml;":"Ö", "&Uuml;":"Ü"}))
-            self.outer.processData(tag, self.product_open, self.company_open, self.feature_open, self.catalog_open, self.mapping_open)
-            # invalidate that tag has been opened
-            self.product_open = False
-            self.company_open = False
-            self.feature_open = False
-            self.catalog_open = False
-            self.mapping_open = False
+            self.outer.processData(tag, self.product_close, self.company_close, self.feature_close, self.catalog_close, self.mapping_close, self.mime_close)
             self.stack.pop()
+            # set every close event to false
+            self.falsify()
      
      
     def parse(self, xml_file, search="be"):
         """Parse given XML file"""
         self.search = search # search for be or for offer?
-        self.be = None
-        self.offer = None
-        self.feature = None
-        self.catalog_group = None
         
         # parse
         now = time.time()
@@ -250,16 +295,7 @@ class Parser:
         parser.setContentHandler(self.EventHandler(self))
         parser.parse(open(xml_file, "r"))
         print "finished with", search, "after", str(time.time()-now), "seconds"
-        
-        # write serialization for last found bes and offers
-        if self.feature != None:
-            self.offer.features.append(self.feature)
-        if self.offer != None:
-            self.serializer.store(self.offer, "offer")
-            self.offers.append(self.offer.id)
-        if self.be != None:
-            self.be.offers = self.offers
-            self.serializer.store(self.be, "be")
+
         if len(self.catalog_hierarchy) > 0 and self.catalog_group != None:
             self.catalog_hierarchy.append(self.catalog_group)
             self.serializer.store(self.catalog_hierarchy, "catalog")

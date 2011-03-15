@@ -64,7 +64,9 @@ class BusinessEntity():
         self.page = ""
         self.duns = ""
         self.gln = ""
-        self.offers = [] # will contain all offering ids of be
+        # media information
+        self.images = []
+        self.urls = []
 
 class Offer():
     """Offering class"""
@@ -93,6 +95,9 @@ class Offer():
         self.taxes = "true"
         self.features = [] # array of feature classes
         self.cataloggroup_ids = []
+        # media information
+        self.images = []
+        self.urls = []
         
 class Feature():
     """Class for product features"""

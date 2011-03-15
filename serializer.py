@@ -33,16 +33,20 @@ XSD = Namespace(xsd)
 
 class Serializer:
     """Serializer class"""
-    def __init__(self, output_folder="", base_uri="", catalog=None, lang=""):
+    def __init__(self, output_folder="", base_uri="", catalog=None, lang="", image_uri=""):
         """Initialization"""
+        self.be_about = None
         self.lang = lang
         self.catalog = catalog
         self.base_uri = base_uri
         self.output_folder = output_folder
-        while self.output_folder[-1] == "/": # remove trailing slashes
+        self.image_uri = image_uri
+        while len(self.output_folder)>0 and self.output_folder[-1] == "/": # remove trailing slashes
             self.output_folder = self.output_folder[:-1]
-        if self.base_uri[-1] != "/":
-            self.base_uri = self.base_uri + "/"
+        while len(self.base_uri)>0 and self.base_uri[-1] == "/":
+            self.base_uri = self.base_uri[:-1]
+        while len(self.image_uri)>0 and self.image_uri[-1] == "/":
+            self.image_uri = self.image_uri[:-1]
             
         # try mkdir output folder
         if not os.path.exists(self.output_folder):
@@ -68,10 +72,10 @@ class Serializer:
             self.dump.write(self.serializeOffer(object, rdf_format="nt"))
             self.sitemap.write("    <sc:dataset>\n\
         <sc:datasetLabel>Offering Metadata for product offer \""+object.id+"\"</sc:datasetLabel>\n\
-        <sc:datasetURI>"+self.base_uri+"offer_"+object.id+".rdf</sc:datasetURI>\n\
-        <sc:linkedDataPrefix slicing=\"subject-object\">"+self.base_uri+"offer_"+object.id+".rdf#</sc:linkedDataPrefix>\n\
-        <sc:sampleURI>"+self.base_uri+"offer_"+object.id+".rdf#offer</sc:sampleURI>\n\
-        <sc:dataDumpLocation>"+self.base_uri+"dump.nt</sc:dataDumpLocation>\n\
+        <sc:datasetURI>"+self.base_uri+"/offer_"+object.id+".rdf</sc:datasetURI>\n\
+        <sc:linkedDataPrefix slicing=\"subject-object\">"+self.base_uri+"/offer_"+object.id+".rdf#</sc:linkedDataPrefix>\n\
+        <sc:sampleURI>"+self.base_uri+"/offer_"+object.id+".rdf#offer</sc:sampleURI>\n\
+        <sc:dataDumpLocation>"+self.base_uri+"/dump.nt</sc:dataDumpLocation>\n\
         <changefreq>weekly</changefreq>\n\
     </sc:dataset>\n")
             
@@ -81,10 +85,10 @@ class Serializer:
             self.dump.write(self.serializeBusinessEntity(object, rdf_format="nt"))
             self.sitemap.write("    <sc:dataset>\n\
         <sc:datasetLabel>Company Metadata</sc:datasetLabel>\n\
-        <sc:datasetURI>"+self.base_uri+"company.rdf</sc:datasetURI>\n\
-        <sc:linkedDataPrefix slicing=\"subject-object\">"+self.base_uri+"company.rdf#</sc:linkedDataPrefix>\n\
-        <sc:sampleURI>"+self.base_uri+"company.rdf#be_"+re.sub(r"[^a-zA-Z0-9]", "", "".join(str(object.legalName).split()))+"</sc:sampleURI>\n\
-        <sc:dataDumpLocation>"+self.base_uri+"dump.nt</sc:dataDumpLocation>\n\
+        <sc:datasetURI>"+self.base_uri+"/company.rdf</sc:datasetURI>\n\
+        <sc:linkedDataPrefix slicing=\"subject-object\">"+self.base_uri+"/company.rdf#</sc:linkedDataPrefix>\n\
+        <sc:sampleURI>"+self.base_uri+"/company.rdf#be_"+re.sub(r"[^a-zA-Z0-9]", "", "".join(str(object.legalName).split()))+"</sc:sampleURI>\n\
+        <sc:dataDumpLocation>"+self.base_uri+"/dump.nt</sc:dataDumpLocation>\n\
         <changefreq>weekly</changefreq>\n\
     </sc:dataset>\n")
             print "wrote", "(company)", object.legalName
@@ -95,10 +99,10 @@ class Serializer:
             self.dump.write(self.serializeCatalogStructure(object, rdf_format="nt"))
             self.sitemap.write("    <sc:dataset>\n\
         <sc:datasetLabel>BMECat Catalog Structure</sc:datasetLabel>\n\
-        <sc:datasetURI>"+self.base_uri+"catalog.rdf</sc:datasetURI>\n\
-        <sc:linkedDataPrefix slicing=\"subject-object\">"+self.base_uri+"catalog.rdf#</sc:linkedDataPrefix>\n\
-        <sc:sampleURI>"+self.base_uri+"catalog.rdf#be_</sc:sampleURI>\n\
-        <sc:dataDumpLocation>"+self.base_uri+"dump.nt</sc:dataDumpLocation>\n\
+        <sc:datasetURI>"+self.base_uri+"/catalog.rdf</sc:datasetURI>\n\
+        <sc:linkedDataPrefix slicing=\"subject-object\">"+self.base_uri+"/catalog.rdf#</sc:linkedDataPrefix>\n\
+        <sc:sampleURI>"+self.base_uri+"/catalog.rdf#be_</sc:sampleURI>\n\
+        <sc:dataDumpLocation>"+self.base_uri+"/dump.nt</sc:dataDumpLocation>\n\
         <changefreq>weekly</changefreq>\n\
     </sc:dataset>\n")
         
@@ -126,15 +130,15 @@ class Serializer:
         g = Graph()
         g.bind("owl", owl)
         
-        selfns = self.base_uri+"catalog.rdf#"
+        selfns = self.base_uri+"/catalog.rdf#"
         g.bind("self", selfns)
         lang = self.mapLanguage(self.catalog.lang)
         if self.lang:
             lang = self.lang
         
         for catalog_group in catalog_hierarchy:
-            id = re.sub(r"[^a-zA-Z0-9]", "", catalog_group.id)
-            parent_id = re.sub(r"[^a-zA-Z0-9]", "", catalog_group.parent_id)
+            id = catalog_group.id
+            parent_id = catalog_group.parent_id
             idref_tax = URIRef(selfns+id+"_tax")
             parent_idref_tax = URIRef(selfns+parent_id+"_tax")
             idref_gen = URIRef(selfns+id+"_gen") # gen has no hierarchy, hence no parent id for gen classes
@@ -172,7 +176,7 @@ class Serializer:
         g.bind("vcard", vcard)
         
         identifier = re.sub(r"[^a-zA-Z0-9]", "", "".join(str(be.legalName).split())) # remove spaces
-        selfns = self.base_uri+"company.rdf#"
+        selfns = self.base_uri+"/company.rdf#"
         g.bind("self", selfns)
         lang = self.mapLanguage(self.catalog.lang) # make de out of deu
         if self.lang: # command line
@@ -180,6 +184,7 @@ class Serializer:
         
         # graph node uris
         be_about = URIRef(selfns+"be_"+identifier)
+        self.be_about = be_about
         be_address = URIRef(selfns+"address_"+identifier)
         
         # annotate graph
@@ -203,10 +208,8 @@ class Serializer:
         self.triple(g, be_address, VCARD.region, Literal(be.region), language=lang)
         self.triple(g, be_address, VCARD['country-name'], Literal(be.country_name), language=lang)
         
-        for offer_id in be.offers:
-            ident = re.sub(r"[^a-zA-Z0-9]", "", offer_id)
-            item = self.base_uri+"offer_"+ident+".rdf#"+"offer"
-            self.triple(g, be_about, GR.offers, URIRef(item))
+        # media
+        self.appendMedia(g, be_about, be)
     
         return g.serialize(format=rdf_format)
         
@@ -215,15 +218,15 @@ class Serializer:
         g = Graph()
         g.bind("owl", owl)
         g.bind("gr", gr)
-        g.bind("cat", self.base_uri+"catalog.rdf#")
+        g.bind("cat", self.base_uri+"/catalog.rdf#")
+        g.bind("foaf", foaf)
         
-        identifier = re.sub(r"[^a-zA-Z0-9]", "", offer.id)
-        selfns = self.base_uri+"offer_"+identifier+".rdf#"
+        selfns = self.base_uri+"/offer_"+offer.id+".rdf#"
         g.bind("self", selfns)
-        manufacturer_id = re.sub(r"[^a-zA-Z0-9]", "", offer.manufacturer_id)
+        manufacturer_id = offer.manufacturer_id
         # use offer id as fallback identifier for manufacturer
         if manufacturer_id == "":
-            manufacturer_id = identifier
+            manufacturer_id = offer.id
         lang = self.mapLanguage(self.catalog.lang) # make de out of deu
         if self.lang: # command line
             lang = self.lang
@@ -240,6 +243,7 @@ class Serializer:
         
         # annotate graph
         # offer level
+        self.triple(g, self.be_about, GR.offers, o_about)
         self.triple(g, o_about, RDF.type, GR.Offering)
         self.triple(g, o_about, GR.name, Literal(offer.description), language=lang)
         self.triple(g, o_about, GR.description, Literal(offer.comment), language=lang)
@@ -282,6 +286,8 @@ class Serializer:
             self.triple(g, o_price, GR.hasCurrency, Literal(self.catalog.currency), datatype=XSD.string)
         if offer.price and offer.price_factor:
             self.triple(g, o_price, GR.hasCurrencyValue, Literal(float(offer.price)*float(offer.price_factor)), datatype=XSD.float)
+        # media
+        self.appendMedia(g, o_about, offer)
         # typeandquantitynode level
         self.triple(g, o_about, GR.includesObject, o_taqn)
         self.triple(g, o_taqn, RDF.type, GR.TypeAndQuantityNode)
@@ -299,6 +305,8 @@ class Serializer:
         self.triple(g, o_product, GR['hasGTIN-14'], Literal(offer.gtin), datatype=XSD.string)
         self.triple(g, o_product, GR.hasMPN, Literal(offer.mpn), datatype=XSD.string)
         self.triple(g, o_product, GR.condition, Literal(offer.condition))
+        # media
+        self.appendMedia(g, o_product, offer)
         # productmodel level
         self.triple(g, o_product, GR.hasMakeAndModel, o_model)
         self.triple(g, o_model, RDF.type, GR.ProductOrServiceModel)
@@ -308,6 +316,8 @@ class Serializer:
         self.triple(g, o_model, GR['hasGTIN-14'], Literal(offer.gtin), datatype=XSD.string)
         self.triple(g, o_model, GR.hasMPN, Literal(offer.mpn), datatype=XSD.string)
         self.triple(g, o_model, GR.condition, Literal(offer.condition))
+        # media
+        self.appendMedia(g, o_model, offer)
         # manufacturer level
         self.triple(g, o_model, GR.hasManufacturer, o_manufacturer)
         self.triple(g, o_manufacturer, RDF.type, GR.BusinessEntity)
@@ -343,8 +353,8 @@ class Serializer:
         # catalog
         for cataloggroup_id in offer.cataloggroup_ids:
             # make productorservice...instance and productorservicemodel instances of gen classes
-            self.triple(g, o_product, RDF.type, URIRef(self.base_uri+"catalog.rdf#"+cataloggroup_id+"_gen"))
-            self.triple(g, o_model, RDF.type, URIRef(self.base_uri+"catalog.rdf#"+cataloggroup_id+"_gen"))
+            self.triple(g, o_product, RDF.type, URIRef(self.base_uri+"/catalog.rdf#"+cataloggroup_id+"_gen"))
+            self.triple(g, o_model, RDF.type, URIRef(self.base_uri+"/catalog.rdf#"+cataloggroup_id+"_gen"))
         
         return g.serialize(format=rdf_format)
     
@@ -354,6 +364,20 @@ class Serializer:
             return mydatetime.strftime("%Y-%m-%dT%H:%M:%SZ")
         else:
             return ""
+    
+    def appendMedia(self, g, subject, entity):
+        """attach media information to graph"""
+        if self.image_uri != "ignore":
+            for item in entity.images:
+                if re.match(r"^http://", item):
+                    self.triple(g, subject, FOAF.depiction, URIRef(item))
+                elif re.match(r"^http://", self.image_uri):
+                    while len(item)>0 and item[0]=="/": # remove leading slashes in item
+                        item = item[1:]
+                    self.triple(g, subject, FOAF.depiction, URIRef(self.image_uri+"/"+item))
+        for item in entity.urls:
+            if(re.match(r"^http://", item)):
+                self.triple(g, subject, RDFS.seeAlso, URIRef(item))
     
     def mapLanguage(self, iso639_2):
         """language mappings iso639_2 -> iso639_1"""
