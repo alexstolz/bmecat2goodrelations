@@ -1,6 +1,9 @@
 .DS_Store
+.hgignore
 .xml
 .pyc
 .project
 .pydevproject
+.orig
+parser2.py
 output/
