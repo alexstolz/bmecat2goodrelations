@@ -113,6 +113,7 @@ class Feature():
         self.name = ""
         self.value = ""
         self.unit = "" # if no unit given, then a qualitativevalueproperty, else quantitativevalueproperty
+        self.fref = ""
         
 class Mime():
     """Class for all media files"""

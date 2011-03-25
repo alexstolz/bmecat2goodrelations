@@ -14,7 +14,7 @@ Organization: E-Business and Web Science Research Group
 from rdflib import *
 import os
 import re
-import datetime
+from util import *
 
 # namespaces
 owl = "http://www.w3.org/2002/07/owl#"
@@ -130,9 +130,9 @@ class Serializer:
         g = Graph()
         g.bind("owl", owl)
         
-        selfns = self.base_uri+"/catalog.rdf#"
+        selfns = self.base_uri+"/catalog.rdf#C_"
         g.bind("self", selfns)
-        lang = self.mapLanguage(self.catalog.lang)
+        lang = mapLanguage(self.catalog.lang)
         if self.lang:
             lang = self.lang
         
@@ -148,9 +148,9 @@ class Serializer:
             self.triple(g, idref_tax, RDFS.subClassOf, parent_idref_tax)
             label_tax = ""
             if catalog_group.name != "":
-                label_tax = catalog_group.name+" [Taxonomy Concept: Anything that may be an instance of this category in any context]"
+                label_tax = catalog_group.name+" (Taxonomy Concept: Anything that may be an instance of this category in any context)"
             else:
-                label_tax = "[Taxonomy Concept: Anything that may be an instance of this category in any context]"
+                label_tax = "(Taxonomy Concept: Anything that may be an instance of this category in any context)"
             self.triple(g, idref_tax, RDFS.label, Literal(label_tax), language=lang)
             self.triple(g, idref_tax, RDFS.comment, Literal(catalog_group.description), language=lang)
             # gen
@@ -159,9 +159,9 @@ class Serializer:
             self.triple(g, idref_gen, RDFS.subClassOf, idref_tax)
             label_gen = ""
             if catalog_group.name != "":
-                label_gen = catalog_group.name+" [Generic Concept: This type of goods]"
+                label_gen = catalog_group.name+" (Generic Concept: This type of goods)"
             else:
-                label_gen = "[Generic Concept: This type of goods]"
+                label_gen = "(Generic Concept: This type of goods)"
             self.triple(g, idref_gen, RDFS.label, Literal(label_gen), language=lang)
             self.triple(g, idref_gen, RDFS.comment, Literal(catalog_group.description), language=lang)
             
@@ -178,7 +178,7 @@ class Serializer:
         identifier = re.sub(r"[^a-zA-Z0-9]", "", "".join(str(be.legalName).split())) # remove spaces
         selfns = self.base_uri+"/company.rdf#"
         g.bind("self", selfns)
-        lang = self.mapLanguage(self.catalog.lang) # make de out of deu
+        lang = mapLanguage(self.catalog.lang) # make de out of deu
         if self.lang: # command line
             lang = self.lang
         
@@ -227,7 +227,7 @@ class Serializer:
         # use offer id as fallback identifier for manufacturer
         if manufacturer_id == "":
             manufacturer_id = offer.id
-        lang = self.mapLanguage(self.catalog.lang) # make de out of deu
+        lang = mapLanguage(self.catalog.lang) # make de out of deu
         if self.lang: # command line
             lang = self.lang
         
@@ -248,13 +248,13 @@ class Serializer:
         self.triple(g, o_about, GR.name, Literal(offer.description), language=lang)
         self.triple(g, o_about, GR.description, Literal(offer.comment), language=lang)
         if offer.validFrom:
-            self.triple(g, o_about, GR.validFrom, Literal(self.convert2datetime(offer.validFrom)), datatype=XSD.dateTime)
+            self.triple(g, o_about, GR.validFrom, Literal(convert2datetime(offer.validFrom)), datatype=XSD.dateTime)
         else: # global validFrom
-            self.triple(g, o_about, GR.validFrom, Literal(self.convert2datetime(self.catalog.validFrom)), datatype=XSD.dateTime)
+            self.triple(g, o_about, GR.validFrom, Literal(convert2datetime(self.catalog.validFrom)), datatype=XSD.dateTime)
         if offer.validThrough:
-            self.triple(g, o_about, GR.validThrough, Literal(self.convert2datetime(offer.validThrough)), datatype=XSD.dateTime)
+            self.triple(g, o_about, GR.validThrough, Literal(convert2datetime(offer.validThrough)), datatype=XSD.dateTime)
         else: # global validThrough
-            self.triple(g, o_about, GR.validThrough, Literal(self.convert2datetime(self.catalog.validThrough)), datatype=XSD.dateTime)
+            self.triple(g, o_about, GR.validThrough, Literal(convert2datetime(self.catalog.validThrough)), datatype=XSD.dateTime)
         for region in set(offer.eligibleRegions) | set(self.catalog.eligibleRegions):
             self.triple(g, o_about, GR.eligibleRegions, Literal(region), datatype=XSD.string)
         self.triple(g, o_about, GR['hasEAN_UCC-13'], Literal(offer.ean), datatype=XSD.string)
@@ -276,8 +276,8 @@ class Serializer:
             self.triple(g, p_quantity, RDF.type, GR.QuantitativeValueFloat)
             self.triple(g, p_quantity, GR.hasUnitOfMeasurement, Literal(offer.order_uom), datatype=XSD.string)
             self.triple(g, p_quantity, GR.hasMinValueFloat, Literal(offer.price_lower), datatype=XSD.float)
-        self.triple(g, o_price, GR.validFrom, Literal(self.convert2datetime(offer.validFrom)), datatype=XSD.dateTime)
-        self.triple(g, o_price, GR.validThrough, Literal(self.convert2datetime(offer.validThrough)), datatype=XSD.dateTime)
+        self.triple(g, o_price, GR.validFrom, Literal(convert2datetime(offer.validFrom)), datatype=XSD.dateTime)
+        self.triple(g, o_price, GR.validThrough, Literal(convert2datetime(offer.validThrough)), datatype=XSD.dateTime)
         self.triple(g, o_price, GR.hasUnitOfMeasurement, Literal(offer.order_uom), datatype=XSD.string)
         self.triple(g, o_price, GR.valueAddedTaxIncluded, Literal(offer.taxes), datatype=XSD.boolean)
         if offer.currency:
@@ -324,6 +324,24 @@ class Serializer:
         self.triple(g, o_manufacturer, GR.name, Literal(offer.manufacturer_name))
         # product feature classes
         for product_feature in offer.product_features:
+            system_id = product_feature.reference_feature_system_name
+            if product_feature.reference_feature_system_id: # system_id should be same as system_name, hence overwrite if available
+                system_id = product_feature.reference_feature_system_id
+            # create gr:category
+            if product_feature.reference_feature_group_name != "":
+                if system_id:
+                    category_string = product_feature.reference_feature_group_name+" (%s)" % system_id
+                self.triple(g, o_product, GR.category, Literal(category_string), language=lang)
+                self.triple(g, o_model, GR.category, Literal(category_string), language=lang)
+            # class uris
+            if product_feature.reference_feature_group_id["value"] != "" and product_feature.reference_feature_group_id["type"] == "flat":
+                classURI = getClassURI(system_id, product_feature.reference_feature_group_id)
+                self.triple(g, o_product, RDF.type, URIRef(classURI))
+                self.triple(g, o_model, RDF.type, URIRef(classURI))
+            if product_feature.reference_feature_group_id2["value"] != "" and product_feature.reference_feature_group_id2["type"] == "flat":
+                classURI = getClassURI(system_id, product_feature.reference_feature_group_id2)
+                self.triple(g, o_product, RDF.type, URIRef(classURI))
+                self.triple(g, o_model, RDF.type, URIRef(classURI))
             # feature classes
             for feature in product_feature.features:
                 # determine whether qualitative or quantitative
@@ -331,17 +349,27 @@ class Serializer:
                 if feature.unit == "":
                     qualitative = True
                 fidentifier = re.sub(r"[^a-zA-Z0-9]", "", "".join(feature.name.split()))
-                feature_prop_id = URIRef(selfns+"prop_"+fidentifier)
                 feature_id = URIRef(selfns+fidentifier)
-                # create suitable object property
-                self.triple(g, feature_prop_id, RDF.type, OWL.ObjectProperty)
-                if qualitative:
-                    self.triple(g, feature_prop_id, RDFS.subPropertyOf, GR.qualitativeProductOrServiceProperty)
-                    self.triple(g, feature_prop_id, RDFS.range, GR.QualitativeValue)
-                else:
-                    self.triple(g, feature_prop_id, RDFS.subPropertyOf, GR.quantitativeProductOrServiceProperty)
-                    self.triple(g, feature_prop_id, RDFS.range, GR.QuantitativeValueFloat)
-                self.triple(g, feature_prop_id, RDFS.domain, GR.ProductOrService)
+                
+                # try get property from existing reference ontology
+                fref_property = getPropertyURI(system_id, feature.fref)
+                if fref_property:
+                    feature_prop_id = URIRef(fref_property)
+                else: # else create a custom property
+                    feature_prop_id = URIRef(selfns+"P_"+fidentifier)
+                    # create suitable object property
+                    self.triple(g, feature_prop_id, RDF.type, OWL.ObjectProperty)
+                    if qualitative:
+                        self.triple(g, feature_prop_id, RDFS.label, Literal("Property %s (%s)" % (fidentifier, system_id)), language="en")
+                        self.triple(g, feature_prop_id, RDFS.comment, Literal("\"%s\" property according to \"%s\" classification." % (fidentifier, system_id)), language="en")
+                        self.triple(g, feature_prop_id, RDFS.subPropertyOf, GR.qualitativeProductOrServiceProperty)
+                        self.triple(g, feature_prop_id, RDFS.range, GR.QualitativeValue)
+                    else:
+                        self.triple(g, feature_prop_id, RDFS.label, Literal("Property %s (%s)" % (fidentifier, system_id)), language="en")
+                        self.triple(g, feature_prop_id, RDFS.comment, Literal("\"%s\" property according to \"%s\" classification." % (fidentifier, system_id)), language="en")
+                        self.triple(g, feature_prop_id, RDFS.subPropertyOf, GR.quantitativeProductOrServiceProperty)
+                        self.triple(g, feature_prop_id, RDFS.range, GR.QuantitativeValueFloat)
+                    self.triple(g, feature_prop_id, RDFS.domain, GR.ProductOrService)
                 
                 self.triple(g, o_model, feature_prop_id, feature_id)
                 if qualitative:
@@ -350,8 +378,14 @@ class Serializer:
                     self.triple(g, feature_id, RDF.type, GR.QuantitativeValueFloat)
                     self.triple(g, feature_id, GR.hasUnitOfMeasurement, Literal(feature.unit), datatype=XSD.string)
                     self.triple(g, feature_id, GR.hasMinValueFloat, Literal(feature.value), datatype=XSD.float)
-                self.triple(g, feature_id, GR.name, Literal(feature.name+" is "+feature.value), language="en")
-                self.triple(g, feature_id, GR.description, Literal("The product feature _"+feature.name+"_ has the value _"+feature.value+feature.unit+"_"), language="en")
+                unit = ""
+                if feature.unit:
+                    unit = " "+feature.unit # nicer formatting
+                self.triple(g, feature_id, GR.name, Literal("%s is %s%s" % (feature.name, feature.value, unit)), language="en")
+                if unit:
+                    self.triple(g, feature_id, GR.description, Literal("The product \"%s\" has a \"%s\" of \"%s%s\"." % (offer.description, feature.name, feature.value, unit)), language="en")
+                else:
+                    self.triple(g, feature_id, GR.description, Literal("The \"%s\" of the product \"%s\" is \"%s\"." % (feature.name, offer.description, feature.value)), language="en")
         # catalog
         for cataloggroup_id in offer.cataloggroup_ids:
             # make productorservice...instance and productorservicemodel instances of gen classes
@@ -359,13 +393,6 @@ class Serializer:
             self.triple(g, o_model, RDF.type, URIRef(self.base_uri+"/catalog.rdf#"+cataloggroup_id+"_gen"))
         
         return g.serialize(format=rdf_format)
-    
-    def convert2datetime(self, datestring):
-        if re.match(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", datestring):
-            mydatetime = datetime.datetime.strptime(datestring, "%Y-%m-%d")
-            return mydatetime.strftime("%Y-%m-%dT%H:%M:%SZ")
-        else:
-            return ""
     
     def appendMedia(self, g, subject, entity):
         """attach media information to graph"""
@@ -382,204 +409,4 @@ class Serializer:
                 if(re.match(r"^http://", mime.source)):
                     self.triple(g, subject, RDFS.seeAlso, URIRef(mime.source))
     
-    def mapLanguage(self, iso639_2):
-        """language mappings iso639_2 -> iso639_1"""
-        mappings = {
-            "aar":"aa",
-            "abk":"ab",
-            "afr":"af",
-            "aka":"ak",
-            "alb":"sq", "sqi":"sq",
-            "amh":"am",
-            "ara":"ar",
-            "arg":"an",
-            "arm":"hy", "hye":"hy",
-            "asm":"as",
-            "ava":"av",
-            "ave":"ae",
-            "aym":"ay",
-            "aze":"az",
-            "bak":"ba",
-            "bam":"bm",
-            "baq":"eu", "eus":"eu",
-            "bel":"be",
-            "ben":"bn",
-            "bih":"bh",
-            "bis":"bi",
-            "tib":"bo", "bod":"bo",
-            "bos":"bs",
-            "bre":"br",
-            "bul":"bg",
-            "bur":"my", "mya":"my",
-            "cat":"ca",
-            "cze":"cs", "ces":"cs",
-            "cha":"ch",
-            "che":"ce",
-            "chi":"zh", "zho":"zh",
-            "chu":"cu",
-            "chv":"cv",
-            "cor":"kw",
-            "cos":"co",
-            "cre":"cr",
-            "wel":"cy", "cym":"cy",
-            "dan":"da",
-            "ger":"de", "deu":"de",
-            "div":"dv",
-            "dut":"nl", "nld":"nl",
-            "dzo":"dz",
-            "gre":"el", "ell":"el",
-            "eng":"en",
-            "epo":"eo",
-            "est":"et",
-            "ewe":"ee",
-            "fao":"fo",
-            "per":"fa", "fas":"fa",
-            "fij":"fj",
-            "fin":"fi",
-            "fre":"fr", "fra":"fr",
-            "fry":"fy",
-            "ful":"ff",
-            "geo":"ka", "kat":"ka",
-            "gla":"gd",
-            "gle":"ga",
-            "glg":"gl",
-            "glv":"gv",
-            "grn":"gn",
-            "guj":"gu",
-            "hat":"ht",
-            "hau":"ha",
-            "heb":"he",
-            "her":"hz",
-            "hin":"hi",
-            "hmo":"ho",
-            "hrv":"hr",
-            "hun":"hu",
-            "ibo":"ig",
-            "ice":"is", "isl":"is",
-            "ido":"io",
-            "iii":"ii",
-            "iku":"iu",
-            "ile":"ie",
-            "ina":"ia",
-            "ind":"id",
-            "ipk":"ik",
-            "ita":"it",
-            "jav":"jv",
-            "jpn":"ja",
-            "kal":"kl",
-            "kan":"kn",
-            "kas":"ks",
-            "geo":"ka", "kat":"ka",
-            "kau":"kr",
-            "kaz":"kk",
-            "khm":"km",
-            "kik":"ki",
-            "kin":"rw",
-            "kir":"ky",
-            "kom":"kv",
-            "kon":"kg",
-            "kor":"ko",
-            "kua":"kj",
-            "kur":"ku",
-            "lao":"lo",
-            "lat":"la",
-            "lav":"lv",
-            "lim":"li",
-            "lin":"ln",
-            "lit":"lt",
-            "ltz":"lb",
-            "lub":"lu",
-            "lug":"lg",
-            "mac":"mk", "mkd":"mk",
-            "mah":"mh",
-            "mal":"ml",
-            "mao":"mi", "mri":"mi",
-            "mar":"mr",
-            "may":"ms", "msa":"ms",
-            "mac":"mk", "mkd":"mk",
-            "mlg":"mg",
-            "mlt":"mt",
-            "mao":"mi", "mri":"mi",
-            "may":"ms", "msa":"ms",
-            "nau":"na",
-            "nav":"nv",
-            "nbl":"nr",
-            "nde":"nd",
-            "ndo":"ng",
-            "nep":"ne",
-            "nno":"nn",
-            "nob":"nb",
-            "nor":"no",
-            "nya":"ny",
-            "oci":"oc",
-            "oji":"oj",
-            "ori":"or",
-            "orm":"om",
-            "oss":"os",
-            "pan":"pa",
-            "pli":"pi",
-            "pol":"pl",
-            "por":"pt",
-            "pus":"ps",
-            "que":"qu",
-            "roh":"rm",
-            "rum":"ro", "ron":"ro",
-            "run":"rn",
-            "rus":"ru",
-            "sag":"sg",
-            "san":"sa",
-            "sin":"si",
-            "slo":"sk", "slk":"sk",
-            "slv":"sl",
-            "sme":"se",
-            "smo":"sm",
-            "sna":"sn",
-            "snd":"sd",
-            "som":"so",
-            "sot":"st",
-            "spa":"es",
-            "srd":"sc",
-            "srp":"sr",
-            "ssw":"ss",
-            "sun":"su",
-            "swa":"sw",
-            "swe":"sv",
-            "tah":"ty",
-            "tam":"ta",
-            "tat":"tt",
-            "tel":"te",
-            "tgk":"tg",
-            "tgl":"tl",
-            "tha":"th",
-            "tir":"ti",
-            "ton":"to",
-            "tsn":"tn",
-            "tso":"ts",
-            "tuk":"tk",
-            "tur":"tr",
-            "twi":"tw",
-            "uig":"ug",
-            "ukr":"uk",
-            "urd":"ur",
-            "uzb":"uz",
-            "ven":"ve",
-            "vie":"vi",
-            "vol":"vo",
-            "wln":"wa",
-            "wol":"wo",
-            "xho":"xh",
-            "yid":"yi",
-            "yor":"yo",
-            "zha":"za",
-            "zul":"zu"
-            }
-        iso639_2 = iso639_2.lower() # make lower case
-        if len(iso639_2) == 2:
-            iso639_1 = iso639_2
-        elif iso639_2 in mappings.keys():
-            iso639_1 = mappings[iso639_2]
-        else:
-            iso639_1 = "en" #default
-        return iso639_1
     
-        

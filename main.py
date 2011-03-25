@@ -16,9 +16,9 @@ Organization: E-Business and Web Science Research Group
 # script with command line arguments: "python main.py file.xml -o output -b http://www.self-example.com/#" DONE
 # make py2exe, py2app
 # let user choose between ProductOrServicesSomeInstancesPlaceholder and ActualProductOrServiceInstance
-# eligibleCustomerTypes, Payment Methods, Warranty Promises?
+# eligibleCustomerTypes, Payment Methods, Warranty Promises? - maybe best trade-off not to use them for sake of complexity avoidance
 import sys
-import parser2 as parser
+import parser#2 as parser
 import serializer
 import classes
 
