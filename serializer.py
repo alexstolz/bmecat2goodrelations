@@ -322,34 +322,36 @@ class Serializer:
         self.triple(g, o_model, GR.hasManufacturer, o_manufacturer)
         self.triple(g, o_manufacturer, RDF.type, GR.BusinessEntity)
         self.triple(g, o_manufacturer, GR.name, Literal(offer.manufacturer_name))
-        # features
-        for feature in offer.features:
-            # determine whether qualitative or quantitative
-            qualitative = False
-            if feature.unit == "":
-                qualitative = True
-            fidentifier = re.sub(r"[^a-zA-Z0-9]", "", "".join(feature.name.split()))
-            feature_prop_id = URIRef(selfns+"prop_"+fidentifier)
-            feature_id = URIRef(selfns+fidentifier)
-            # create suitable object property
-            self.triple(g, feature_prop_id, RDF.type, OWL.ObjectProperty)
-            if qualitative:
-                self.triple(g, feature_prop_id, RDFS.subPropertyOf, GR.qualitativeProductOrServiceProperty)
-                self.triple(g, feature_prop_id, RDFS.range, GR.QualitativeValue)
-            else:
-                self.triple(g, feature_prop_id, RDFS.subPropertyOf, GR.quantitativeProductOrServiceProperty)
-                self.triple(g, feature_prop_id, RDFS.range, GR.QuantitativeValueFloat)
-            self.triple(g, feature_prop_id, RDFS.domain, GR.ProductOrService)
-            
-            self.triple(g, o_model, feature_prop_id, feature_id)
-            if qualitative:
-                self.triple(g, feature_id, RDF.type, GR.QualitativeValue)
-            else:
-                self.triple(g, feature_id, RDF.type, GR.QuantitativeValueFloat)
-                self.triple(g, feature_id, GR.hasUnitOfMeasurement, Literal(feature.unit), datatype=XSD.string)
-                self.triple(g, feature_id, GR.hasMinValueFloat, Literal(feature.value), datatype=XSD.float)
-            self.triple(g, feature_id, GR.name, Literal(feature.name+" is "+feature.value), language="en")
-            self.triple(g, feature_id, GR.description, Literal("The product feature _"+feature.name+"_ has the value _"+feature.value+feature.unit+"_"), language="en")
+        # product feature classes
+        for product_feature in offer.product_features:
+            # feature classes
+            for feature in product_feature.features:
+                # determine whether qualitative or quantitative
+                qualitative = False
+                if feature.unit == "":
+                    qualitative = True
+                fidentifier = re.sub(r"[^a-zA-Z0-9]", "", "".join(feature.name.split()))
+                feature_prop_id = URIRef(selfns+"prop_"+fidentifier)
+                feature_id = URIRef(selfns+fidentifier)
+                # create suitable object property
+                self.triple(g, feature_prop_id, RDF.type, OWL.ObjectProperty)
+                if qualitative:
+                    self.triple(g, feature_prop_id, RDFS.subPropertyOf, GR.qualitativeProductOrServiceProperty)
+                    self.triple(g, feature_prop_id, RDFS.range, GR.QualitativeValue)
+                else:
+                    self.triple(g, feature_prop_id, RDFS.subPropertyOf, GR.quantitativeProductOrServiceProperty)
+                    self.triple(g, feature_prop_id, RDFS.range, GR.QuantitativeValueFloat)
+                self.triple(g, feature_prop_id, RDFS.domain, GR.ProductOrService)
+                
+                self.triple(g, o_model, feature_prop_id, feature_id)
+                if qualitative:
+                    self.triple(g, feature_id, RDF.type, GR.QualitativeValue)
+                else:
+                    self.triple(g, feature_id, RDF.type, GR.QuantitativeValueFloat)
+                    self.triple(g, feature_id, GR.hasUnitOfMeasurement, Literal(feature.unit), datatype=XSD.string)
+                    self.triple(g, feature_id, GR.hasMinValueFloat, Literal(feature.value), datatype=XSD.float)
+                self.triple(g, feature_id, GR.name, Literal(feature.name+" is "+feature.value), language="en")
+                self.triple(g, feature_id, GR.description, Literal("The product feature _"+feature.name+"_ has the value _"+feature.value+feature.unit+"_"), language="en")
         # catalog
         for cataloggroup_id in offer.cataloggroup_ids:
             # make productorservice...instance and productorservicemodel instances of gen classes
@@ -367,17 +369,18 @@ class Serializer:
     
     def appendMedia(self, g, subject, entity):
         """attach media information to graph"""
-        if self.image_uri != "ignore":
-            for item in entity.images:
-                if re.match(r"^http://", item):
-                    self.triple(g, subject, FOAF.depiction, URIRef(item))
+        for mime in entity.media:
+            if self.image_uri != "ignore" and re.match(r"image", mime.type): # image/png, ...
+                if re.match(r"^http://", mime.source):
+                    self.triple(g, subject, FOAF.depiction, URIRef(mime.source))
                 elif re.match(r"^http://", self.image_uri):
+                    item = mime.source
                     while len(item)>0 and item[0]=="/": # remove leading slashes in item
                         item = item[1:]
                     self.triple(g, subject, FOAF.depiction, URIRef(self.image_uri+"/"+item))
-        for item in entity.urls:
-            if(re.match(r"^http://", item)):
-                self.triple(g, subject, RDFS.seeAlso, URIRef(item))
+            else:
+                if(re.match(r"^http://", mime.source)):
+                    self.triple(g, subject, RDFS.seeAlso, URIRef(mime.source))
     
     def mapLanguage(self, iso639_2):
         """language mappings iso639_2 -> iso639_1"""

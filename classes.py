@@ -65,8 +65,7 @@ class BusinessEntity():
         self.duns = ""
         self.gln = ""
         # media information
-        self.images = []
-        self.urls = []
+        self.media = []
 
 class Offer():
     """Offering class"""
@@ -93,18 +92,34 @@ class Offer():
         self.manufacturer_id = ""
         self.manufacturer_name = ""
         self.taxes = "true"
-        self.features = [] # array of feature classes
+        self.product_features = [] # array of product feature classes
         self.cataloggroup_ids = []
         # media information
-        self.images = []
-        self.urls = []
+        self.media = []
         
+class ProductFeature():
+    """Class for product feature systems including product features"""
+    def __init__(self):
+        self.reference_feature_system_id = "" # sameas system_name!
+        self.reference_feature_system_name = ""
+        self.reference_feature_group_name = ""
+        self.reference_feature_group_id = {"type":None, "value":None} # type e.g. "flat"
+        self.reference_feature_group_id2 = {"type":None, "value":None} # alternative group id
+        self.features = []
+
 class Feature():
     """Class for product features"""
     def __init__(self):
         self.name = ""
         self.value = ""
         self.unit = "" # if no unit given, then a qualitativevalueproperty, else quantitativevalueproperty
+        
+class Mime():
+    """Class for all media files"""
+    def __init__(self):
+        self.name = ""
+        self.type = ""
+        self.source = ""
 
 class Tag(): 
     """Class carrying tag metadata"""

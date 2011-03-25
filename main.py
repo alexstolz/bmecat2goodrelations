@@ -18,7 +18,7 @@ Organization: E-Business and Web Science Research Group
 # let user choose between ProductOrServicesSomeInstancesPlaceholder and ActualProductOrServiceInstance
 # eligibleCustomerTypes, Payment Methods, Warranty Promises?
 import sys
-import parser
+import parser2 as parser
 import serializer
 import classes
 
