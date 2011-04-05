@@ -33,6 +33,7 @@ def convert():
     base_uri = "http://www.example.com" # may be overwritten by command line parameter
     output_folder = "output" # may be overwritten by command line parameter
     image_uri = "ignore" # uri path to images as specified in bmecat catalog - ignore ignores any images
+    model_only = False # print model data only, i.e. hide/skip offering details
     catalog = classes.Catalog() # global settings are stored in catalog object
 
     if entries[0].get():
@@ -47,6 +48,12 @@ def convert():
         lang = entries[4].get()
     if entries[5].get() == "actual":
         catalog.typeOfProducts = entries[5].get()
+    elif entries[5].get() == "placeholder":
+        catalog.typeOfProducts = entries[5].get()
+    elif entries[5].get() == "model":
+        model_only = True
+    else:
+        print "WARNING: could not interpret product type ->", entries[5].get()
         
     if not input_file:
         status.config(text="No XML input file was provided!")
@@ -57,7 +64,7 @@ def convert():
     status.update_idletasks()
     
     # parse and serialize on-the-fly
-    serializerobject = serializer.Serializer(output_folder, base_uri, catalog, lang, image_uri)
+    serializerobject = serializer.Serializer(output_folder, base_uri, catalog, lang, image_uri, model_only)
     parserobject = parser.Parser(serializerobject)
     parserobject.parse(input_file, search="cataloggroup") # mappings between articles and catalog groups
     parserobject.parse(input_file, search="offer")

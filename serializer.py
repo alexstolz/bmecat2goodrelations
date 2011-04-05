@@ -33,7 +33,7 @@ XSD = Namespace(xsd)
 
 class Serializer:
     """Serializer class"""
-    def __init__(self, output_folder="", base_uri="", catalog=None, lang="", image_uri=""):
+    def __init__(self, output_folder="", base_uri="", catalog=None, lang="", image_uri="", model_only=False):
         """Initialization"""
         self.be_about = None
         self.lang = lang
@@ -41,6 +41,10 @@ class Serializer:
         self.base_uri = base_uri
         self.output_folder = output_folder
         self.image_uri = image_uri
+        self.model_only = model_only
+        
+        self.feature_graph = Graph()
+        self.feature_graph.bind("owl", owl)
         while len(self.output_folder)>0 and self.output_folder[-1] == "/": # remove trailing slashes
             self.output_folder = self.output_folder[:-1]
         while len(self.base_uri)>0 and self.base_uri[-1] == "/":
@@ -57,12 +61,15 @@ class Serializer:
         
         # serialize objects
         self.dump = open(output_folder+"/dump.nt", "w")
+        self.feature_file = open(output_folder+"/features.rdf", "w")
         self.sitemap = open(output_folder+"/sitemap.xml", "w")
         self.sitemap.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\" xmlns:sc=\"http://sw.deri.org/2007/07/sitemapextension/scschema.xsd\">\n")
             
     def __del__(self):
         """Destruction"""
         self.sitemap.write("</urlset>")
+        self.feature_file.write(self.feature_graph.serialize(format="pretty-xml"))
+        self.dump.write(self.feature_graph.serialize(format="nt"))
         
     def store(self, object, object_type):
         """Write serialization variants to files"""
@@ -101,7 +108,13 @@ class Serializer:
         <sc:datasetLabel>BMECat Catalog Structure</sc:datasetLabel>\n\
         <sc:datasetURI>"+self.base_uri+"/catalog.rdf</sc:datasetURI>\n\
         <sc:linkedDataPrefix slicing=\"subject-object\">"+self.base_uri+"/catalog.rdf#</sc:linkedDataPrefix>\n\
-        <sc:sampleURI>"+self.base_uri+"/catalog.rdf#be_</sc:sampleURI>\n\
+        <sc:dataDumpLocation>"+self.base_uri+"/dump.nt</sc:dataDumpLocation>\n\
+        <changefreq>weekly</changefreq>\n\
+    </sc:dataset>\n")
+            self.sitemap.write("    <sc:dataset>\n\
+        <sc:datasetLabel>Proprietary Property Catalog Structure</sc:datasetLabel>\n\
+        <sc:datasetURI>"+self.base_uri+"/features.rdf</sc:datasetURI>\n\
+        <sc:linkedDataPrefix slicing=\"subject-object\">"+self.base_uri+"/features.rdf#</sc:linkedDataPrefix>\n\
         <sc:dataDumpLocation>"+self.base_uri+"/dump.nt</sc:dataDumpLocation>\n\
         <changefreq>weekly</changefreq>\n\
     </sc:dataset>\n")
@@ -138,6 +151,8 @@ class Serializer:
         
         for catalog_group in catalog_hierarchy:
             id = catalog_group.id
+            if not id:
+                continue # skip if no id available
             parent_id = catalog_group.parent_id
             idref_tax = URIRef(selfns+id+"_tax")
             parent_idref_tax = URIRef(selfns+parent_id+"_tax")
@@ -154,7 +169,7 @@ class Serializer:
             self.triple(g, idref_tax, RDFS.label, Literal(label_tax), language=lang)
             self.triple(g, idref_tax, RDFS.comment, Literal(catalog_group.description), language=lang)
             # gen
-            self.triple(g, idref_gen, RDFS.type, OWL.Class)
+            self.triple(g, idref_gen, RDF.type, OWL.Class)
             self.triple(g, idref_gen, RDFS.subClassOf, GR.ProductOrService)
             self.triple(g, idref_gen, RDFS.subClassOf, idref_tax)
             label_gen = ""
@@ -219,6 +234,7 @@ class Serializer:
         g.bind("owl", owl)
         g.bind("gr", gr)
         g.bind("cat", self.base_uri+"/catalog.rdf#")
+        g.bind("prop", self.base_uri+"/features.rdf#")
         g.bind("foaf", foaf)
         
         selfns = self.base_uri+"/offer_"+offer.id+".rdf#"
@@ -242,73 +258,75 @@ class Serializer:
         o_manufacturer = URIRef(selfns+"manufacturer_"+manufacturer_id)
         
         # annotate graph
-        # offer level
-        self.triple(g, self.be_about, GR.offers, o_about)
-        self.triple(g, o_about, RDF.type, GR.Offering)
-        self.triple(g, o_about, GR.name, Literal(offer.description), language=lang)
-        self.triple(g, o_about, GR.description, Literal(offer.comment), language=lang)
-        if offer.validFrom:
-            self.triple(g, o_about, GR.validFrom, Literal(convert2datetime(offer.validFrom)), datatype=XSD.dateTime)
-        else: # global validFrom
-            self.triple(g, o_about, GR.validFrom, Literal(convert2datetime(self.catalog.validFrom)), datatype=XSD.dateTime)
-        if offer.validThrough:
-            self.triple(g, o_about, GR.validThrough, Literal(convert2datetime(offer.validThrough)), datatype=XSD.dateTime)
-        else: # global validThrough
-            self.triple(g, o_about, GR.validThrough, Literal(convert2datetime(self.catalog.validThrough)), datatype=XSD.dateTime)
-        for region in set(offer.eligibleRegions) | set(self.catalog.eligibleRegions):
-            self.triple(g, o_about, GR.eligibleRegions, Literal(region), datatype=XSD.string)
-        self.triple(g, o_about, GR['hasEAN_UCC-13'], Literal(offer.ean), datatype=XSD.string)
-        self.triple(g, o_about, GR['hasGTIN-14'], Literal(offer.gtin), datatype=XSD.string)
-        self.triple(g, o_about, GR.hasMPN, Literal(offer.mpn), datatype=XSD.string)
-        self.triple(g, o_about, GR.condition, Literal(offer.condition))
-        if offer.order_uom and offer.order_units:
-            self.triple(g, o_about, GR.hasEligibleQuantity, o_quantity)
-            self.triple(g, o_quantity, RDF.type, GR.QuantitativeValueFloat)
-            self.triple(g, o_quantity, GR.hasUnitOfMeasurement, Literal(offer.order_uom), datatype=XSD.string)
-            self.triple(g, o_quantity, GR.hasMinValueFloat, Literal(offer.order_units), datatype=XSD.float)
-        # hasBusinessFunction
-        self.triple(g, o_about, GR.hasBusinessFunction, GR.Sell)
-        # pricespecification level
-        self.triple(g, o_about, GR.hasPriceSpecification, o_price)
-        self.triple(g, o_price, RDF.type, GR.UnitPriceSpecification)
-        if offer.order_uom and offer.price_lower:
-            self.triple(g, o_price, GR.hasEligibleQuantity, p_quantity)
-            self.triple(g, p_quantity, RDF.type, GR.QuantitativeValueFloat)
-            self.triple(g, p_quantity, GR.hasUnitOfMeasurement, Literal(offer.order_uom), datatype=XSD.string)
-            self.triple(g, p_quantity, GR.hasMinValueFloat, Literal(offer.price_lower), datatype=XSD.float)
-        self.triple(g, o_price, GR.validFrom, Literal(convert2datetime(offer.validFrom)), datatype=XSD.dateTime)
-        self.triple(g, o_price, GR.validThrough, Literal(convert2datetime(offer.validThrough)), datatype=XSD.dateTime)
-        self.triple(g, o_price, GR.hasUnitOfMeasurement, Literal(offer.order_uom), datatype=XSD.string)
-        self.triple(g, o_price, GR.valueAddedTaxIncluded, Literal(offer.taxes), datatype=XSD.boolean)
-        if offer.currency:
-            self.triple(g, o_price, GR.hasCurrency, Literal(offer.currency), datatype=XSD.string)
-        else: # global currency
-            self.triple(g, o_price, GR.hasCurrency, Literal(self.catalog.currency), datatype=XSD.string)
-        if offer.price and offer.price_factor:
-            self.triple(g, o_price, GR.hasCurrencyValue, Literal(float(offer.price)*float(offer.price_factor)), datatype=XSD.float)
-        # media
-        self.appendMedia(g, o_about, offer)
-        # typeandquantitynode level
-        self.triple(g, o_about, GR.includesObject, o_taqn)
-        self.triple(g, o_taqn, RDF.type, GR.TypeAndQuantityNode)
-        self.triple(g, o_taqn, GR.amountOfThisGood, Literal(offer.content_units), datatype=XSD.float)
-        self.triple(g, o_taqn, GR.hasUnitOfMeasurement, Literal(offer.content_uom), datatype=XSD.string)
-        # productorservice level
-        self.triple(g, o_taqn, GR.typeOfGood, o_product)
-        if self.catalog.typeOfProducts == "actual":
-            self.triple(g, o_product, RDF.type, GR.ActualProductOrServiceInstance)
-        else:
-            self.triple(g, o_product, RDF.type, GR.ProductOrServicesSomeInstancesPlaceholder)
-        self.triple(g, o_product, GR.name, Literal(offer.description), language=lang)
-        self.triple(g, o_product, GR.description, Literal(offer.comment), language=lang)
-        self.triple(g, o_product, GR['hasEAN_UCC-13'], Literal(offer.ean), datatype=XSD.string)
-        self.triple(g, o_product, GR['hasGTIN-14'], Literal(offer.gtin), datatype=XSD.string)
-        self.triple(g, o_product, GR.hasMPN, Literal(offer.mpn), datatype=XSD.string)
-        self.triple(g, o_product, GR.condition, Literal(offer.condition))
-        # media
-        self.appendMedia(g, o_product, offer)
-        # productmodel level
-        self.triple(g, o_product, GR.hasMakeAndModel, o_model)
+        if not self.model_only:
+            # offer level
+            self.triple(g, self.be_about, GR.offers, o_about)
+            self.triple(g, o_about, RDF.type, GR.Offering)
+            self.triple(g, o_about, GR.name, Literal(offer.description), language=lang)
+            self.triple(g, o_about, GR.description, Literal(offer.comment), language=lang)
+            if offer.validFrom:
+                self.triple(g, o_about, GR.validFrom, Literal(convert2datetime(offer.validFrom)), datatype=XSD.dateTime)
+            else: # global validFrom
+                self.triple(g, o_about, GR.validFrom, Literal(convert2datetime(self.catalog.validFrom)), datatype=XSD.dateTime)
+            if offer.validThrough:
+                self.triple(g, o_about, GR.validThrough, Literal(convert2datetime(offer.validThrough)), datatype=XSD.dateTime)
+            else: # global validThrough
+                self.triple(g, o_about, GR.validThrough, Literal(convert2datetime(self.catalog.validThrough)), datatype=XSD.dateTime)
+            for region in set(offer.eligibleRegions) | set(self.catalog.eligibleRegions):
+                self.triple(g, o_about, GR.eligibleRegions, Literal(region), datatype=XSD.string)
+            self.triple(g, o_about, GR['hasEAN_UCC-13'], Literal(offer.ean), datatype=XSD.string)
+            self.triple(g, o_about, GR['hasGTIN-14'], Literal(offer.gtin), datatype=XSD.string)
+            self.triple(g, o_about, GR.hasMPN, Literal(offer.mpn), datatype=XSD.string)
+            self.triple(g, o_about, GR.condition, Literal(offer.condition))
+            if offer.order_uom and offer.order_units:
+                self.triple(g, o_about, GR.hasEligibleQuantity, o_quantity)
+                self.triple(g, o_quantity, RDF.type, GR.QuantitativeValueFloat)
+                self.triple(g, o_quantity, GR.hasUnitOfMeasurement, Literal(offer.order_uom), datatype=XSD.string)
+                self.triple(g, o_quantity, GR.hasMinValueFloat, Literal(offer.order_units), datatype=XSD.float)
+            # hasBusinessFunction
+            self.triple(g, o_about, GR.hasBusinessFunction, GR.Sell)
+            # pricespecification level
+            if offer.price and (offer.currency or self.catalog.currency):
+                self.triple(g, o_about, GR.hasPriceSpecification, o_price)
+                self.triple(g, o_price, RDF.type, GR.UnitPriceSpecification)
+                if offer.order_uom and offer.price_lower:
+                    self.triple(g, o_price, GR.hasEligibleQuantity, p_quantity)
+                    self.triple(g, p_quantity, RDF.type, GR.QuantitativeValueFloat)
+                    self.triple(g, p_quantity, GR.hasUnitOfMeasurement, Literal(offer.order_uom), datatype=XSD.string)
+                    self.triple(g, p_quantity, GR.hasMinValueFloat, Literal(offer.price_lower), datatype=XSD.float)
+                self.triple(g, o_price, GR.validFrom, Literal(convert2datetime(offer.validFrom)), datatype=XSD.dateTime)
+                self.triple(g, o_price, GR.validThrough, Literal(convert2datetime(offer.validThrough)), datatype=XSD.dateTime)
+                self.triple(g, o_price, GR.hasUnitOfMeasurement, Literal(offer.order_uom), datatype=XSD.string)
+                self.triple(g, o_price, GR.valueAddedTaxIncluded, Literal(offer.taxes), datatype=XSD.boolean)
+                if offer.currency:
+                    self.triple(g, o_price, GR.hasCurrency, Literal(offer.currency), datatype=XSD.string)
+                else: # global currency
+                    self.triple(g, o_price, GR.hasCurrency, Literal(self.catalog.currency), datatype=XSD.string)
+                if offer.price and offer.price_factor:
+                    self.triple(g, o_price, GR.hasCurrencyValue, Literal(float(offer.price)*float(offer.price_factor)), datatype=XSD.float)
+            # media
+            self.appendMedia(g, o_about, offer)
+            # typeandquantitynode level
+            self.triple(g, o_about, GR.includesObject, o_taqn)
+            self.triple(g, o_taqn, RDF.type, GR.TypeAndQuantityNode)
+            self.triple(g, o_taqn, GR.amountOfThisGood, Literal(offer.content_units), datatype=XSD.float)
+            self.triple(g, o_taqn, GR.hasUnitOfMeasurement, Literal(offer.content_uom), datatype=XSD.string)
+            # productorservice level
+            self.triple(g, o_taqn, GR.typeOfGood, o_product)
+            if self.catalog.typeOfProducts == "actual":
+                self.triple(g, o_product, RDF.type, GR.ActualProductOrServiceInstance)
+            else:
+                self.triple(g, o_product, RDF.type, GR.ProductOrServicesSomeInstancesPlaceholder)
+            self.triple(g, o_product, GR.name, Literal(offer.description), language=lang)
+            self.triple(g, o_product, GR.description, Literal(offer.comment), language=lang)
+            self.triple(g, o_product, GR['hasEAN_UCC-13'], Literal(offer.ean), datatype=XSD.string)
+            self.triple(g, o_product, GR['hasGTIN-14'], Literal(offer.gtin), datatype=XSD.string)
+            self.triple(g, o_product, GR.hasMPN, Literal(offer.mpn), datatype=XSD.string)
+            self.triple(g, o_product, GR.condition, Literal(offer.condition))
+            # media
+            self.appendMedia(g, o_product, offer)
+            # productmodel level
+            self.triple(g, o_product, GR.hasMakeAndModel, o_model)
         self.triple(g, o_model, RDF.type, GR.ProductOrServiceModel)
         self.triple(g, o_model, GR.name, Literal(offer.description), language=lang)
         self.triple(g, o_model, GR.description, Literal(offer.comment), language=lang)
@@ -351,25 +369,27 @@ class Serializer:
                 fidentifier = re.sub(r"[^a-zA-Z0-9]", "", "".join(feature.name.split()))
                 feature_id = URIRef(selfns+fidentifier)
                 
+                feature_prop_idref = re.sub(r"[^a-zA-Z0-9]", "", "".join(str(system_id+"_"+fidentifier).split()))
                 # try get property from existing reference ontology
                 fref_property = getPropertyURI(system_id, feature.fref)
                 if fref_property:
                     feature_prop_id = URIRef(fref_property)
                 else: # else create a custom property
-                    feature_prop_id = URIRef(selfns+"P_"+fidentifier)
+                    feature_prop_id = URIRef(selfns+"P_"+system_id+"_"+fidentifier)
                     # create suitable object property
-                    self.triple(g, feature_prop_id, RDF.type, OWL.ObjectProperty)
+                    self.triple(self.feature_graph, feature_prop_id, RDF.type, OWL.ObjectProperty)
                     if qualitative:
-                        self.triple(g, feature_prop_id, RDFS.label, Literal("Property %s (%s)" % (fidentifier, system_id)), language="en")
-                        self.triple(g, feature_prop_id, RDFS.comment, Literal("\"%s\" property according to \"%s\" classification." % (fidentifier, system_id)), language="en")
-                        self.triple(g, feature_prop_id, RDFS.subPropertyOf, GR.qualitativeProductOrServiceProperty)
-                        self.triple(g, feature_prop_id, RDFS.range, GR.QualitativeValue)
+                        self.triple(self.feature_graph, feature_prop_id, RDFS.label, Literal("Property %s (%s)" % (fidentifier, system_id)), language="en")
+                        self.triple(self.feature_graph, feature_prop_id, RDFS.comment, Literal("\"%s\" property according to \"%s\" classification." % (fidentifier, system_id)), language="en")
+                        self.triple(self.feature_graph, feature_prop_id, RDFS.subPropertyOf, GR.qualitativeProductOrServiceProperty)
+                        self.triple(self.feature_graph, feature_prop_id, RDFS.range, GR.QualitativeValue)
                     else:
-                        self.triple(g, feature_prop_id, RDFS.label, Literal("Property %s (%s)" % (fidentifier, system_id)), language="en")
-                        self.triple(g, feature_prop_id, RDFS.comment, Literal("\"%s\" property according to \"%s\" classification." % (fidentifier, system_id)), language="en")
-                        self.triple(g, feature_prop_id, RDFS.subPropertyOf, GR.quantitativeProductOrServiceProperty)
-                        self.triple(g, feature_prop_id, RDFS.range, GR.QuantitativeValueFloat)
-                    self.triple(g, feature_prop_id, RDFS.domain, GR.ProductOrService)
+                        self.triple(self.feature_graph, feature_prop_id, RDFS.label, Literal("Property %s (%s)" % (fidentifier, system_id)), language="en")
+                        self.triple(self.feature_graph, feature_prop_id, RDFS.comment, Literal("\"%s\" property according to \"%s\" classification." % (fidentifier, system_id)), language="en")
+                        self.triple(self.feature_graph, feature_prop_id, RDFS.subPropertyOf, GR.quantitativeProductOrServiceProperty)
+                        self.triple(self.feature_graph, feature_prop_id, RDFS.range, GR.QuantitativeValueFloat)
+                    self.triple(self.feature_graph, feature_prop_id, RDFS.domain, GR.ProductOrService)
+                    feature_prop_id = URIRef(self.base_uri+"/features.rdf#P_"+system_id+"_"+fidentifier) # prop_id for external access
                 
                 self.triple(g, o_model, feature_prop_id, feature_id)
                 if qualitative:
@@ -383,13 +403,14 @@ class Serializer:
                     unit = " "+feature.unit # nicer formatting
                 self.triple(g, feature_id, GR.name, Literal("%s is %s%s" % (feature.name, feature.value, unit)), language="en")
                 if unit:
-                    self.triple(g, feature_id, GR.description, Literal("The product \"%s\" has a \"%s\" of \"%s%s\"." % (offer.description, feature.name, feature.value, unit)), language="en")
+                    self.triple(g, feature_id, GR.description, Literal("The product has a \"%s\" of \"%s%s\"." % (feature.name, feature.value, unit)), language="en")
                 else:
-                    self.triple(g, feature_id, GR.description, Literal("The \"%s\" of the product \"%s\" is \"%s\"." % (feature.name, offer.description, feature.value)), language="en")
+                    self.triple(g, feature_id, GR.description, Literal("The \"%s\" of the product is \"%s\"." % (feature.name, feature.value)), language="en")
         # catalog
         for cataloggroup_id in offer.cataloggroup_ids:
             # make productorservice...instance and productorservicemodel instances of gen classes
-            self.triple(g, o_product, RDF.type, URIRef(self.base_uri+"/catalog.rdf#"+cataloggroup_id+"_gen"))
+            if not self.model_only:
+                self.triple(g, o_product, RDF.type, URIRef(self.base_uri+"/catalog.rdf#"+cataloggroup_id+"_gen"))
             self.triple(g, o_model, RDF.type, URIRef(self.base_uri+"/catalog.rdf#"+cataloggroup_id+"_gen"))
         
         return g.serialize(format=rdf_format)

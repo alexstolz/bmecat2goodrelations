@@ -30,11 +30,13 @@ def main():
     base_uri = "http://www.example.com" # may be overwritten by command line parameter
     output_folder = "output" # may be overwritten by command line parameter
     image_uri = "ignore" # uri path to images as specified in bmecat catalog - ignore ignores any images
+    model_only = False # print model data only, i.e. hide/skip offering details
     catalog = classes.Catalog() # global settings are stored in catalog object
     
     # parse command line arguments
     previous = ""
     for arg in sys.argv[1:]:
+        warn = False
         if previous == "-b":
             base_uri = arg
         elif previous == "-o":
@@ -44,10 +46,22 @@ def main():
         elif previous == "-t":
             if arg == "actual":
                 catalog.typeOfProducts = arg
+            elif arg == "placeholder":
+                catalog.typeOfProducts = arg
+            elif arg == "model":
+                model_only = True
+            else:
+                warn = True
         elif previous == "-i":
             image_uri = arg
         elif previous == "" and len(arg)>0 and arg[0] != '-':
             input_file = arg
+        elif previous:
+            warn = True
+            
+        if warn:
+            print "WARNING: could not interpret command series ->", previous, arg
+            
         previous = ""
         if arg == "--help":
             print "USAGE"
@@ -60,11 +74,12 @@ def main():
             print "\t\t\t\t(default = http://www.example.com)"
             print "\t-l <language>\t\t2-letter language code according to ISO 639-1"
             print "\t\t\t\t(default = try to determine from catalog)"
-            print "\t-t <typeOfProduct>\tconfigure the type of product"
+            print "\t-t <typeOfProduct>\tconfigure the type of product (if \"model\", then will print product model catalog only)"
             print "\t\t\t\t(default = actual)"
             print "\t\t\t\tPossible values are [1]:"
             print "\t\t\t\t* actual: products are likely all gr:ActualProductOrServiceInstance, and"
             print "\t\t\t\t* placeholder: products are likely all gr:ProductOrServicesSomeInstancesPlaceholder"
+            print "\t\t\t\t* model: only product model data (gr:ProductOrServiceModel) gets printed out, i.e. offer data is skipped"
             print "\t-i <uri>\t\tfull uri path to image folder that contains images as specified in bmecat file"
             print "\t\t\t\t(default = ignore)"
             print "\t--help\t\t\tprint usage summary"
@@ -87,7 +102,7 @@ def main():
         return
     
     # parse and serialize on-the-fly
-    serializerobject = serializer.Serializer(output_folder, base_uri, catalog, lang, image_uri)
+    serializerobject = serializer.Serializer(output_folder, base_uri, catalog, lang, image_uri, model_only)
     parserobject = parser.Parser(serializerobject)
     parserobject.parse(input_file, search="cataloggroup") # mappings between articles and catalog groups
     parserobject.parse(input_file, search="be")
