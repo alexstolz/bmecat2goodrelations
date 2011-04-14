@@ -13,12 +13,15 @@ Organization: E-Business and Web Science Research Group
 """
 
 # TODO:
+# configurable foaf:page element -> pattern: http://www.weidmueller.de/?Page=Product&Product_id=[<ID>] DONE
+# think about UOM!! -> mm should be MMT! -> maybe provide a python dict with mappings
+# support hash and slash uris!
 # script with command line arguments: "python main.py file.xml -o output -b http://www.self-example.com/#" DONE
 # make py2exe, py2app
-# let user choose between ProductOrServicesSomeInstancesPlaceholder and ActualProductOrServiceInstance
+# let user choose between ProductOrServicesSomeInstancesPlaceholder and ActualProductOrServiceInstance DONE
 # eligibleCustomerTypes, Payment Methods, Warranty Promises? - maybe best trade-off not to use them for sake of complexity avoidance
 import sys
-import parser#2 as parser
+import parser
 import serializer
 import classes
 
@@ -31,6 +34,7 @@ def main():
     output_folder = "output" # may be overwritten by command line parameter
     image_uri = "ignore" # uri path to images as specified in bmecat catalog - ignore ignores any images
     model_only = False # print model data only, i.e. hide/skip offering details
+    pattern = "" # product uri pattern, any string containing %s is allowed, e.g. http://www.example.com/products/id_%s/
     catalog = classes.Catalog() # global settings are stored in catalog object
     
     # parse command line arguments
@@ -54,13 +58,15 @@ def main():
                 warn = True
         elif previous == "-i":
             image_uri = arg
+        elif previous == "-p":
+            pattern = arg
         elif previous == "" and len(arg)>0 and arg[0] != '-':
             input_file = arg
         elif previous:
             warn = True
             
         if warn:
-            print "WARNING: could not interpret command series ->", previous, arg
+            print "WARNING: Could not interpret command series -> %s %s" % (previous, arg)
             
         previous = ""
         if arg == "--help":
@@ -82,6 +88,9 @@ def main():
             print "\t\t\t\t* model: only product model data (gr:ProductOrServiceModel) gets printed out, i.e. offer data is skipped"
             print "\t-i <uri>\t\tfull uri path to image folder that contains images as specified in bmecat file"
             print "\t\t\t\t(default = ignore)"
+            print "\t-p <uri_pattern>\turi pattern for product page urls"
+            print "\t\t\t\t(default = \"\")"
+            print "\t\t\t\tproduct uri pattern, any string containing %s is allowed, e.g. http://www.example.com/products/id_%s/"
             print "\t--help\t\t\tprint usage summary"
             print
             print
@@ -97,18 +106,18 @@ def main():
             previous = arg
             
     if not input_file:
-        print "No XML input file was provided!"
+        sys.stderr.write("No XML input file was provided")
         print "Usage summary: \"python main.py --help\""
         return
     
     # parse and serialize on-the-fly
-    serializerobject = serializer.Serializer(output_folder, base_uri, catalog, lang, image_uri, model_only)
+    serializerobject = serializer.Serializer(output_folder, base_uri, catalog, lang, image_uri, model_only, pattern)
     parserobject = parser.Parser(serializerobject)
     parserobject.parse(input_file, search="cataloggroup") # mappings between articles and catalog groups
     parserobject.parse(input_file, search="be")
     parserobject.parse(input_file, search="offer")
 
-    print "ready to serve"
+    print "Conversion successfully finished"
 
 if __name__ == "__main__":
     main()

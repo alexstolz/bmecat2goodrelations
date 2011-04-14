@@ -33,7 +33,7 @@ XSD = Namespace(xsd)
 
 class Serializer:
     """Serializer class"""
-    def __init__(self, output_folder="", base_uri="", catalog=None, lang="", image_uri="", model_only=False):
+    def __init__(self, output_folder="", base_uri="", catalog=None, lang="", image_uri="", model_only=False, pattern=""):
         """Initialization"""
         self.be_about = None
         self.lang = lang
@@ -42,6 +42,7 @@ class Serializer:
         self.output_folder = output_folder
         self.image_uri = image_uri
         self.model_only = model_only
+        self.pattern = pattern
         
         self.feature_graph = Graph()
         self.feature_graph.bind("owl", owl)
@@ -98,7 +99,7 @@ class Serializer:
         <sc:dataDumpLocation>"+self.base_uri+"/dump.nt</sc:dataDumpLocation>\n\
         <changefreq>weekly</changefreq>\n\
     </sc:dataset>\n")
-            print "wrote", "(company)", object.legalName
+            print "wrote company %s" % object.legalName
             
         elif object_type == "catalog":
             file = open(self.output_folder+"/catalog.rdf", "w")
@@ -111,6 +112,7 @@ class Serializer:
         <sc:dataDumpLocation>"+self.base_uri+"/dump.nt</sc:dataDumpLocation>\n\
         <changefreq>weekly</changefreq>\n\
     </sc:dataset>\n")
+            print "wrote catalog"
             self.sitemap.write("    <sc:dataset>\n\
         <sc:datasetLabel>Proprietary Property Catalog Structure</sc:datasetLabel>\n\
         <sc:datasetURI>"+self.base_uri+"/features.rdf</sc:datasetURI>\n\
@@ -118,11 +120,14 @@ class Serializer:
         <sc:dataDumpLocation>"+self.base_uri+"/dump.nt</sc:dataDumpLocation>\n\
         <changefreq>weekly</changefreq>\n\
     </sc:dataset>\n")
+            print "wrote features"
         
     
     def triple(self, g, subject, predicate, object, datatype=None, language=None):
         """Create a triple in graph g"""
-        if type(object) == Literal:
+        if None in [subject, predicate, object]: # NoneType object, don't create triple
+            return
+        elif type(object) == Literal:
             # return if content is empty
             if object.title() == "":
                 return
@@ -135,6 +140,9 @@ class Serializer:
         elif type(object) == URIRef:
             if object.title() == "":
                 return
+        else: # neither Literal nor URIRef
+            print "WARNING: triple(%s, %s, %s) not created - object type neither Literal nor URIRef" % (str(subject), str(predicate), str(object))
+            return
         # create triple in graph g
         g.add((subject, predicate, object))
         
@@ -154,9 +162,11 @@ class Serializer:
             if not id:
                 continue # skip if no id available
             parent_id = catalog_group.parent_id
-            idref_tax = URIRef(selfns+id+"_tax")
-            parent_idref_tax = URIRef(selfns+parent_id+"_tax")
-            idref_gen = URIRef(selfns+id+"_gen") # gen has no hierarchy, hence no parent id for gen classes
+            parent_idref_tax = None
+            if parent_id:
+                parent_idref_tax = URIRef(selfns+parent_id+"-tax")
+            idref_tax = URIRef(selfns+id+"-tax")
+            idref_gen = URIRef(selfns+id+"-gen") # gen has no hierarchy, hence no parent id for gen classes
             
             # tax
             self.triple(g, idref_tax, RDF.type, OWL.Class)
@@ -247,6 +257,9 @@ class Serializer:
         if self.lang: # command line
             lang = self.lang
         
+        # create product url for foaf:page links
+        product_url = createProductURI(offer.id, self.pattern)
+        
         # graph node uris
         o_about = URIRef(selfns+"offer")
         o_taqn = URIRef(selfns+"taqn")
@@ -282,9 +295,10 @@ class Serializer:
                 self.triple(g, o_about, GR.hasEligibleQuantity, o_quantity)
                 self.triple(g, o_quantity, RDF.type, GR.QuantitativeValueFloat)
                 self.triple(g, o_quantity, GR.hasUnitOfMeasurement, Literal(offer.order_uom), datatype=XSD.string)
-                self.triple(g, o_quantity, GR.hasMinValueFloat, Literal(offer.order_units), datatype=XSD.float)
+                self.triple(g, o_quantity, GR.hasValueFloat, Literal(offer.order_units), datatype=XSD.float)
             # hasBusinessFunction
             self.triple(g, o_about, GR.hasBusinessFunction, GR.Sell)
+            self.triple(g, o_about, FOAF.page, URIRef(product_url))
             # pricespecification level
             if offer.price and (offer.currency or self.catalog.currency):
                 self.triple(g, o_about, GR.hasPriceSpecification, o_price)
@@ -323,6 +337,7 @@ class Serializer:
             self.triple(g, o_product, GR['hasGTIN-14'], Literal(offer.gtin), datatype=XSD.string)
             self.triple(g, o_product, GR.hasMPN, Literal(offer.mpn), datatype=XSD.string)
             self.triple(g, o_product, GR.condition, Literal(offer.condition))
+            self.triple(g, o_product, FOAF.page, URIRef(product_url))
             # media
             self.appendMedia(g, o_product, offer)
             # productmodel level
@@ -334,6 +349,7 @@ class Serializer:
         self.triple(g, o_model, GR['hasGTIN-14'], Literal(offer.gtin), datatype=XSD.string)
         self.triple(g, o_model, GR.hasMPN, Literal(offer.mpn), datatype=XSD.string)
         self.triple(g, o_model, GR.condition, Literal(offer.condition))
+        self.triple(g, o_model, FOAF.page, URIRef(product_url))
         # media
         self.appendMedia(g, o_model, offer)
         # manufacturer level
@@ -375,9 +391,9 @@ class Serializer:
                 if fref_property:
                     feature_prop_id = URIRef(fref_property)
                 else: # else create a custom property
-                    feature_prop_id = URIRef(selfns+"P_"+system_id+"_"+fidentifier)
+                    feature_prop_id = URIRef(self.base_uri+"/features.rdf#P_"+system_id+"_"+fidentifier)
                     # create suitable object property
-                    self.triple(self.feature_graph, feature_prop_id, RDF.type, OWL.ObjectProperty)
+                    self.triple(self.feature_graph, feature_prop_id, RDF.type, OWL.ObjectProperty) # prop_id for external access
                     if qualitative:
                         self.triple(self.feature_graph, feature_prop_id, RDFS.label, Literal("Property %s (%s)" % (fidentifier, system_id)), language="en")
                         self.triple(self.feature_graph, feature_prop_id, RDFS.comment, Literal("\"%s\" property according to \"%s\" classification." % (fidentifier, system_id)), language="en")
@@ -389,7 +405,6 @@ class Serializer:
                         self.triple(self.feature_graph, feature_prop_id, RDFS.subPropertyOf, GR.quantitativeProductOrServiceProperty)
                         self.triple(self.feature_graph, feature_prop_id, RDFS.range, GR.QuantitativeValueFloat)
                     self.triple(self.feature_graph, feature_prop_id, RDFS.domain, GR.ProductOrService)
-                    feature_prop_id = URIRef(self.base_uri+"/features.rdf#P_"+system_id+"_"+fidentifier) # prop_id for external access
                 
                 self.triple(g, o_model, feature_prop_id, feature_id)
                 if qualitative:
@@ -397,7 +412,7 @@ class Serializer:
                 else:
                     self.triple(g, feature_id, RDF.type, GR.QuantitativeValueFloat)
                     self.triple(g, feature_id, GR.hasUnitOfMeasurement, Literal(feature.unit), datatype=XSD.string)
-                    self.triple(g, feature_id, GR.hasMinValueFloat, Literal(feature.value), datatype=XSD.float)
+                    self.triple(g, feature_id, GR.hasValueFloat, Literal(feature.value), datatype=XSD.float)
                 unit = ""
                 if feature.unit:
                     unit = " "+feature.unit # nicer formatting
@@ -410,8 +425,8 @@ class Serializer:
         for cataloggroup_id in offer.cataloggroup_ids:
             # make productorservice...instance and productorservicemodel instances of gen classes
             if not self.model_only:
-                self.triple(g, o_product, RDF.type, URIRef(self.base_uri+"/catalog.rdf#"+cataloggroup_id+"_gen"))
-            self.triple(g, o_model, RDF.type, URIRef(self.base_uri+"/catalog.rdf#"+cataloggroup_id+"_gen"))
+                self.triple(g, o_product, RDF.type, URIRef(self.base_uri+"/catalog.rdf#C_"+cataloggroup_id+"-gen"))
+            self.triple(g, o_model, RDF.type, URIRef(self.base_uri+"/catalog.rdf#C_"+cataloggroup_id+"-gen"))
         
         return g.serialize(format=rdf_format)
     

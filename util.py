@@ -14,13 +14,20 @@ Organization: E-Business and Web Science Research Group
 import re
 import datetime
 
+# configurable functions
+def createProductURI(product_id, pattern):
+    """Returns the Product URI (information resource) according to a custom pattern"""
+    if "%s" in pattern:
+        return pattern % product_id
+    return ""
+
 def getClassURI(system_id, group_id):
     """Returns the class URI of a given reference classification system, e.g. eClassOWL"""
     if not system_id or not group_id:
         return ""
     if system_id == "ECLASS-5.1":
         return "http://www.ebusiness-unibw.org/ontologies/eclass/5.1.4/#C_"+group_id["value"]
-    # add other ontology classes here
+    # add additional classification system classes here
     else:
         return ""
     
@@ -30,10 +37,11 @@ def getPropertyURI(system_id, fref):
         return ""
     if system_id == "ECLASS-5.1":
         return "http://www.ebusiness-unibw.org/ontologies/eclass/5.1.4/#P_"+fref
-    # add other ontology properties here
+    # add additional classification system properties here
     else:
         return ""
 
+# program functions, no customization recommended
 def convert2datetime(datestring):
     """Convert a datestring formatted as yyyy-mm-dd to iso datetime format"""
     if re.match(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", datestring):
@@ -236,7 +244,7 @@ def mapLanguage(iso639_2):
     iso639_2 = iso639_2.lower() # make lower case
     if len(iso639_2) == 2:
         iso639_1 = iso639_2
-    elif iso639_2 in mappings.keys():
+    elif iso639_2 in mappings:
         iso639_1 = mappings[iso639_2]
     else:
         iso639_1 = "en" #default

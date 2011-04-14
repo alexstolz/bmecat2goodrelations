@@ -35,6 +35,10 @@ class Parser:
         self.mime = Mime()
         
     def processCatalog(self, subtop, top, tag):
+        if top == "CATALOG_STRUCTURE":
+            if "type" in tag.attrs:
+                if tag.attrs['type'] == "root": # root has no parents
+                    self.catalog_group.parent_id = ""     
         if subtop == "CATALOG_STRUCTURE" and self.catalog_group != None:
             if top == "GROUP_ID":
                 if tag.content != "":
@@ -46,6 +50,8 @@ class Parser:
             elif top == "PARENT_ID":
                 if tag.content != "":
                     self.catalog_group.parent_id = "gid_"+re.sub(r"[^a-zA-Z0-9]", "", tag.content)
+
+    def processArticle2CatalogGroupMap(self, subtop, top, tag):
         if subtop in ["PRODUCT_TO_CATALOGGROUP_MAP", "ARTICLE_TO_CATALOGGROUP_MAP"]:
             if top in ["PROD_ID", "ART_ID"]:
                 self.article2categorygroup.article_id = re.sub(r"[^a-zA-Z0-9]", "", tag.content)
@@ -57,7 +63,7 @@ class Parser:
         if subtop in ["PARTY", "SUPPLIER", "BUYER"]:
             if top in ["PARTY_ID", "SUPPLIER_ID", "BUYER_ID"]:
                 self.be.id = re.sub(r"[^a-zA-Z0-9]", "", tag.content)
-                if "type" in tag.attrs.keys():
+                if "type" in tag.attrs:
                     attr_type = tag.attrs['type']
                     if attr_type == "duns":
                         self.be.duns = tag.content
@@ -81,7 +87,7 @@ class Parser:
             elif top == "FAX": self.be.fax = tag.content
             elif top == "EMAIL": self.be.email = tag.content
             elif top == "URL": self.be.page = tag.content
-        # supports two variants, although one is wrong
+        # supports two variants, where the second is definitely wrong, but in use anyway
         # SUPPLIER -> MIME_INFO -> MIME -> MIME_TYPE
         # SUPPLIER -> MIME -> MIME_TYPE (wrong usage)
         if subtop in ["PARTY", "SUPPLIER", "BUYER"] or ((len(tag.stack) > 2 and tag.stack[-3] in ["PARTY", "SUPPLIER", "BUYER"]) or (len(tag.stack) > 3 and tag.stack[-4] in ["PARTY", "SUPPLIER", "BUYER"])):
@@ -96,7 +102,7 @@ class Parser:
         if subtop in ["PRODUCT", "ARTICLE"]:
             if top in ["SUPPLIER_PID", "SUPPLIER_AID"]:
                 self.offer.id = re.sub(r"[^a-zA-Z0-9]", "", tag.content)
-                if "type" in tag.attrs.keys():
+                if "type" in tag.attrs:
                     attr_type = tag.attrs['type']
                     if attr_type == "ean":
                         self.offer.ean = tag.content
@@ -109,7 +115,7 @@ class Parser:
             elif top == "DESCRIPTION_LONG": self.offer.comment = tag.content
             elif top == "EAN": self.offer.ean = tag.content
             elif top == "INTERNATIONAL_PID": # replaces EAN and SUPPLIER_ALT_PID in BMECat 2005
-                if "type" in tag.attrs.keys():
+                if "type" in tag.attrs:
                     attr_type = tag.attrs['type']
                     if attr_type == "ean":
                         self.offer.ean = tag.content
@@ -122,7 +128,7 @@ class Parser:
                 self.offer.manufacturer_id = re.sub(r"[^a-zA-Z0-9]", "", tag.content)
                 self.offer.manufacturer_name = tag.content
             elif top in ["PRODUCT_STATUS", "ARTICLE_STATUS"]:
-                if "type" in tag.attrs.keys():
+                if "type" in tag.attrs:
                     attr_type = tag.attrs['type']
                     if attr_type: # condition: used, new, ...
                         self.offer.condition = attr_type
@@ -165,19 +171,19 @@ class Parser:
                 self.product_feature.reference_feature_group_name = tag.content
             elif top == "REFERENCE_FEATURE_GROUP_ID":
                 self.product_feature.reference_feature_group_id["value"] = tag.content
-                if "type" in tag.attrs.keys():
+                if "type" in tag.attrs:
                     attr_type = tag.attrs['type']
                     if attr_type:
                         self.product_feature.reference_feature_group_id["type"] = attr_type
             elif top == "REFERENCE_FEATURE_GROUP_ID2":
                 self.product_feature.reference_feature_group_id2["value"] = tag.content
-                if "type" in tag.attrs.keys():
+                if "type" in tag.attrs:
                     attr_type = tag.attrs['type']
                     if attr_type:
                         self.product_feature.reference_feature_group_id2["type"] = attr_type
         
         if top in ["PRODUCT_PRICE", "ARTICLE_PRICE"]:
-            if "price_type" in tag.attrs.keys():
+            if "price_type" in tag.attrs:
                 attr_type = tag.attrs['price_type']
                 if attr_type in ["net_list", "net_customer", "net_customer_exp", "net"]:
                     self.offer.taxes = "false"
@@ -208,7 +214,7 @@ class Parser:
                 self.article2categorygroup.article_id = ""
                 self.article2categorygroup.cataloggroup_id = ""
             # process article to catalog group mapping
-            self.processCatalog(subtop, top, tag)
+            self.processArticle2CatalogGroupMap(subtop, top, tag)
         
         elif self.search == "be":
             if close["mime"]:
@@ -217,13 +223,13 @@ class Parser:
                 self.mime = Mime()
                 
                 #print "mime_close for supplier", top, subtop, tag.stack[-3], tag.content
+            # process catalog structure
+            self.processCatalog(subtop, top, tag)
             # serialize catalog structure when be is processed, not with offers -> is supposed to be more performant
             if close["catalog"]:
                 if self.catalog_group != None:
                     self.catalog_hierarchy.append(self.catalog_group)
                 self.catalog_group = CatalogGroup()
-            # process catalog structure
-            self.processCatalog(subtop, top, tag)
             
             # business entity tag has been closed immediately before
             if close["company"]:
@@ -262,18 +268,18 @@ class Parser:
         """Event handler of SAX Parser"""
         def __init__(self, outer):
             self.outer = outer
-            self.attrs = None
+            self.attrs = {}
             self.stack = []
             self.close = {"product":False, "company":False, "feature":False, "catalog":False, "mapping":False, "mime":False, "product_feature":False}
             
         def falsify(self):
             """Helper function to set multiple vars to False"""
-            for k in self.close.keys():
+            for k in self.close:
                 self.close[k] = False # when True, respective tag has been closed immediately
         
         def startElement(self, name, attrs):
             """This function gets called on every tag opening event"""
-            self.attrs = attrs
+            self.attrs[name] = attrs
             self.stack.append(name)
             self.content = ""
             
@@ -301,7 +307,7 @@ class Parser:
                 
             if type(self.content) == unicode:
                 self.content = self.content.encode("utf-8")
-            tag = Tag(self.stack, self.attrs, xml.sax.saxutils.unescape(self.content, {"&szlig;":"ß", "&auml;":"ä", "&ouml;":"ö", "&uuml;":"ü", "&Auml;":"Ä", "&Ouml;":"Ö", "&Uuml;":"Ü"}))
+            tag = Tag(self.stack, self.attrs[name], xml.sax.saxutils.unescape(self.content, {"&szlig;":"ß", "&auml;":"ä", "&ouml;":"ö", "&uuml;":"ü", "&Auml;":"Ä", "&Ouml;":"Ö", "&Uuml;":"Ü"}))
             self.outer.processData(tag, self.close)
             self.stack.pop()
             # set every close event to false
@@ -314,12 +320,12 @@ class Parser:
         
         # parse
         now = time.time()
-        print "start parsing with", search
+        print "start parsing %s" % search
         parser = xml.sax.make_parser()
         parser.setFeature("http://xml.org/sax/features/external-general-entities", False)
         parser.setContentHandler(self.EventHandler(self))
         parser.parse(open(xml_file, "r"))
-        print "finished with", search, "after", str(time.time()-now), "seconds"
+        print "finished with %s after %s seconds" %(search, str(time.time()-now))
 
         if len(self.catalog_hierarchy) > 0 and self.catalog_group != None:
             self.catalog_hierarchy.append(self.catalog_group)
