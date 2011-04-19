@@ -39,9 +39,10 @@
     </style>
 </head>
 <body>{% for c in classes %}
-    <h1 id="{{c.idf}}">{{c.label}} <span style="float:right; font-size:60%">(rdf:type <a href="{{c.type_url}}">{{c.type}}</a>)</span></h1>
+    <h1 id="{{c.idf}}">{{c.title}} <span style="float:right; font-size:60%">(rdf:type <a href="{{c.type_url}}">{{c.type}}</a>)</span></h1>
     <div><strong>URI</strong> <a href="{{c.uri}}">{{c.uri}}</a><span style="float:right">{{c.depiction}}</span></div>{% if c.subclassof %}
-    <div><strong><a href="{{c.rdfs_subclassof}}">rdfs:subClassOf</a></strong> {{c.subclassof}}</div>{% endif %}{% if c.comment %}
+    <div><strong><a href="{{c.rdfs_subclassof}}">rdfs:subClassOf</a></strong> {{c.subclassof}}</div>{% endif %}{% if c.label %}
+    <p><strong><a href="{{c.rdfs_label}}">rdfs:label</a></strong><br />{{c.label}}</p>{% endif %}{% if c.comment %}
     <p><strong><a href="{{c.rdfs_comment}}">rdfs:comment</a></strong><br />{{c.comment}}</p>{% endif %}{% endfor %}
 </body>
 </html>
