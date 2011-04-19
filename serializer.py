@@ -88,11 +88,11 @@ class Serializer:
             file = open(self.output_folder+"/rdf/company.rdf", "w")
             file.write(self.serializeBusinessEntity(object, rdf_format="pretty-xml"))
             self.dump.write(self.serializeBusinessEntity(object, rdf_format="nt"))
-            self.sitemap.write("""<?xml version=\"1.0\" encoding=\"UTF-8\"?>
-<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\" xmlns:sc=\"http://sw.deri.org/2007/07/sitemapextension/scschema.xsd\">
+            self.sitemap.write("""<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:sc="http://sw.deri.org/2007/07/sitemapextension/scschema.xsd">
     <sc:dataset>
         <sc:datasetLabel>Semantic Web dataset of %(legalname)s</sc:datasetLabel>
-        <sc:linkedDataPrefix slicing=\"subject-object\">%(baseuri)s/</sc:linkedDataPrefix>
+        <sc:linkedDataPrefix slicing="subject-object">%(baseuri)s/</sc:linkedDataPrefix>
         <sc:dataDumpLocation>%(baseuri)s/dump/dump.nt.gz</sc:dataDumpLocation>
         <lastmod>%(lastmod)s</lastmod>
         <changefreq>weekly</changefreq>

@@ -1,8 +1,9 @@
-#Fri Mar 25 15:50:46 CET 2011
+#Tue Apr 19 15:51:02 CEST 2011
 eclipse.preferences.version=1
 encoding/classes.py=utf-8
 encoding/gui.py=utf-8
 encoding/main.py=utf-8
 encoding/parser.py=utf-8
 encoding/serializer.py=utf-8
+encoding/specgen.py=utf-8
 encoding/util.py=utf-8

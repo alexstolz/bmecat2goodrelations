@@ -24,6 +24,7 @@ import sys
 import parser
 import serializer
 import classes
+import specgen
 
 def main():
     """Main function"""
@@ -116,6 +117,7 @@ def main():
     parserobject.parse(input_file, search="cataloggroup") # mappings between articles and catalog groups
     parserobject.parse(input_file, search="be")
     parserobject.parse(input_file, search="offer")
+    specgen.create_html(output_folder)
 
     print "Conversion successfully finished"
 

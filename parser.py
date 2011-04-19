@@ -42,14 +42,14 @@ class Parser:
         if subtop == "CATALOG_STRUCTURE" and self.catalog_group != None:
             if top == "GROUP_ID":
                 if tag.content != "":
-                    self.catalog_group.id = "gid_"+re.sub(r"[^a-zA-Z0-9]", "", tag.content)
+                    self.catalog_group.id = re.sub(r"[^a-zA-Z0-9]", "", tag.content)
             elif top == "GROUP_NAME":
                 self.catalog_group.name = tag.content
             elif top == "GROUP_DESCRIPTION":
                 self.catalog_group.description = tag.content
             elif top == "PARENT_ID":
                 if tag.content != "":
-                    self.catalog_group.parent_id = "gid_"+re.sub(r"[^a-zA-Z0-9]", "", tag.content)          
+                    self.catalog_group.parent_id = re.sub(r"[^a-zA-Z0-9]", "", tag.content)          
         if subtop == "CATALOG_STRUCTURE" or ((len(tag.stack) > 2 and tag.stack[-3] == "CATALOG_STRUCTURE") or (len(tag.stack) > 3 and tag.stack[-4] == "CATALOG_STRUCTURE")) and self.catalog_group != None:
             if top == "MIME_PURPOSE":
                 self.mime.name = tag.content
@@ -66,7 +66,7 @@ class Parser:
                 self.article2categorygroup.article_id = re.sub(r"[^a-zA-Z0-9]", "", tag.content)
             elif top == "CATALOG_GROUP_ID":
                 if tag.content != "":
-                    self.article2categorygroup.cataloggroup_id = "gid_"+re.sub(r"[^a-zA-Z0-9]", "", tag.content)
+                    self.article2categorygroup.cataloggroup_id = re.sub(r"[^a-zA-Z0-9]", "", tag.content)
         
     def processCompany(self, subtop, top, tag):
         if subtop in ["PARTY", "SUPPLIER", "BUYER"]:

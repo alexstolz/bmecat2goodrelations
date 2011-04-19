@@ -14,6 +14,7 @@ Organization: E-Business and Web Science Research Group
 import parser
 import serializer
 import classes
+import specgen
 from Tkinter import *
 from tkFileDialog import askdirectory, askopenfilename
 import sys
@@ -85,6 +86,7 @@ def convert():
     parserobject.parse(input_file, search="cataloggroup") # mappings between articles and catalog groups
     parserobject.parse(input_file, search="be")
     parserobject.parse(input_file, search="offer")
+    specgen.create_html(output_folder)
 
     print "Conversion successfully finished"
 

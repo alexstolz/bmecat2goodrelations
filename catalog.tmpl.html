@@ -1,0 +1,47 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+    <title>BMEcat product classification</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <meta name="robots" content="index,follow" />
+    <meta name="description" content="converted product classification from bmecat catalog" />
+    <meta name="keywords" content="bmecat, bmecat2goodrelations, goodrelations, ontology, owl, rdf, rdf-s, sem, semantic web, e-commerce, linked data" />
+    <meta name="generator" content="bmecat2goodrelations" />
+    <style type="text/css">
+    <!--
+    body {
+        padding: 1em 4em 1em 4em;
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        text-align: justify;
+        color: black;
+        background: white;
+    }
+    :link { color: #00C; background: transparent }
+    :visited { color: #609; background: transparent }
+    a:active { color: #C00; background: transparent }
+    h1, h2, h3, h4, h5, h6 { text-align: left }
+
+    h1, h2, h3 { color: #36c; background: white; font-weight: normal; }
+    h1 { font-size: 150%; }
+    h2 { font-size: 140%; }
+    h3 { font-size: 130%; }
+    h4 { font-size: 120%; font-weight: bold; }
+    h5 { font-size: 110%; font-weight: bold; }
+    h6 { font-size: 100%; font-weight: bold; }
+
+    h1, h2, h3, h4, h5, h6 {
+        border-bottom: 0px solid #aaa;
+    }
+    strong a:link, strong a:visited, strong a:active { color:black; text-decoration:none; }
+    strong a:hover { text-decoration: underline; }
+    -->
+    </style>
+</head>
+<body>{% for c in classes %}
+    <h1 id="{{c.idf}}">{{c.label}} <span style="float:right; font-size:60%">(rdf:type <a href="{{c.type_url}}">{{c.type}}</a>)</span></h1>
+    <div><strong>URI</strong> <a href="{{c.uri}}">{{c.uri}}</a><span style="float:right">{{c.depiction}}</span></div>{% if c.subclassof %}
+    <div><strong><a href="{{c.rdfs_subclassof}}">rdfs:subClassOf</a></strong> {{c.subclassof}}</div>{% endif %}{% if c.comment %}
+    <p><strong><a href="{{c.rdfs_comment}}">rdfs:comment</a></strong><br />{{c.comment}}</p>{% endif %}{% endfor %}
+</body>
+</html>
