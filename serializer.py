@@ -14,6 +14,8 @@ Organization: E-Business and Web Science Research Group
 from rdflib import *
 import os
 import re
+import gzip
+
 from util import *
 
 # namespaces
@@ -35,6 +37,7 @@ class Serializer:
     """Serializer class"""
     def __init__(self, output_folder="", base_uri="", catalog=None, lang="", image_uri="", model_only=False, pattern=""):
         """Initialization"""
+
         self.be_about = None
         self.lang = lang
         self.catalog = catalog
@@ -44,6 +47,9 @@ class Serializer:
         self.model_only = model_only
         self.pattern = pattern
         
+        self.offerfile_id = "offer"
+        if self.model_only:
+            self.offerfile_id = "model"
         self.feature_graph = Graph()
         self.feature_graph.bind("owl", owl)
         while len(self.output_folder)>0 and self.output_folder[-1] == "/": # remove trailing slashes
@@ -54,15 +60,16 @@ class Serializer:
             self.image_uri = self.image_uri[:-1]
             
         # try mkdir output folder
-        if not os.path.exists(self.output_folder):
-            try:
-                os.makedirs(self.output_folder)
-            except OSError:
-                pass
+        #if not os.path.exists(self.output_folder):
+        try:
+            os.makedirs(self.output_folder+"/dump")
+            os.makedirs(self.output_folder+"/rdf")
+        except OSError:
+            pass
         
         # serialize objects
-        self.dump = open(output_folder+"/dump.nt", "w")
-        self.feature_file = open(output_folder+"/features.rdf", "w")
+        self.dump = gzip.open(output_folder+"/dump/dump.nt.gz", "wb")
+        self.feature_file = open(output_folder+"/rdf/features.rdf", "w")
         self.sitemap = open(output_folder+"/sitemap.xml", "w")
         self.sitemap.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\" xmlns:sc=\"http://sw.deri.org/2007/07/sitemapextension/scschema.xsd\">\n")
             
@@ -75,52 +82,62 @@ class Serializer:
     def store(self, object, object_type):
         """Write serialization variants to files"""
         if object_type == "offer":
-            file = open(self.output_folder+"/offer_"+object.id+".rdf", "w")
+            file = open("%s/rdf/%s_%s.rdf" % (self.output_folder, self.offerfile_id, object.id), "w")
             file.write(self.serializeOffer(object, rdf_format="pretty-xml"))
             self.dump.write(self.serializeOffer(object, rdf_format="nt"))
+            """
             self.sitemap.write("    <sc:dataset>\n\
-        <sc:datasetLabel>Offering Metadata for product offer \""+object.id+"\"</sc:datasetLabel>\n\
-        <sc:datasetURI>"+self.base_uri+"/offer_"+object.id+".rdf</sc:datasetURI>\n\
-        <sc:linkedDataPrefix slicing=\"subject-object\">"+self.base_uri+"/offer_"+object.id+".rdf#</sc:linkedDataPrefix>\n\
-        <sc:sampleURI>"+self.base_uri+"/offer_"+object.id+".rdf#offer</sc:sampleURI>\n\
-        <sc:dataDumpLocation>"+self.base_uri+"/dump.nt</sc:dataDumpLocation>\n\
+        <sc:datasetLabel>Metadata for product %(offer)s \"%(objectid)s\"</sc:datasetLabel>\n\
+        <sc:linkedDataPrefix slicing=\"subject-object\">%(baseuri)s/rdf/%(offer)s_%(objectid)s.rdf#</sc:linkedDataPrefix>\n\
+        <sc:sampleURI>%(baseuri)s/rdf/%(offer)s_%(objectid)s.rdf#offer</sc:sampleURI>\n\
+        <sc:dataDumpLocation>%(baseuri)s/rdf/%(offer)s_%(objectid)s.rdf</sc:dataDumpLocation>\n\
         <changefreq>weekly</changefreq>\n\
-    </sc:dataset>\n")
+    </sc:dataset>\n" % ({"offer":self.offerfile_id, "objectid":object.id, "baseuri":self.base_uri}))
+            """
             
         elif object_type == "be":
-            file = open(self.output_folder+"/company.rdf", "w")
+            import datetime
+            file = open(self.output_folder+"/rdf/company.rdf", "w")
             file.write(self.serializeBusinessEntity(object, rdf_format="pretty-xml"))
             self.dump.write(self.serializeBusinessEntity(object, rdf_format="nt"))
             self.sitemap.write("    <sc:dataset>\n\
-        <sc:datasetLabel>Company Metadata</sc:datasetLabel>\n\
-        <sc:datasetURI>"+self.base_uri+"/company.rdf</sc:datasetURI>\n\
-        <sc:linkedDataPrefix slicing=\"subject-object\">"+self.base_uri+"/company.rdf#</sc:linkedDataPrefix>\n\
-        <sc:sampleURI>"+self.base_uri+"/company.rdf#be_"+re.sub(r"[^a-zA-Z0-9]", "", "".join(str(object.legalName).split()))+"</sc:sampleURI>\n\
-        <sc:dataDumpLocation>"+self.base_uri+"/dump.nt</sc:dataDumpLocation>\n\
+        <sc:datasetLabel>Semantic Web dataset of %(legalname)s</sc:datasetLabel>\n\
+        <sc:linkedDataPrefix slicing=\"subject-object\">%(baseuri)s/</sc:linkedDataPrefix>\n\
+        <sc:dataDumpLocation>%(baseuri)s/dump/dump.nt.gz</sc:dataDumpLocation>\n\
+        <lastmod>%(lastmod)s</lastmod>\n\
         <changefreq>weekly</changefreq>\n\
-    </sc:dataset>\n")
+    </sc:dataset>\n" % ({"baseuri":self.base_uri, "legalname":object.legalName, "lastmod":datetime.datetime.strftime(datetime.datetime.now(), "%Y-%m-%dT%H:%M:%SZ")}))
+            """
+            self.sitemap.write("    <sc:dataset>\n\
+        <sc:datasetLabel>Company Metadata</sc:datasetLabel>\n\
+        <sc:linkedDataPrefix slicing=\"subject-object\">%(baseuri)s/rdf/company.rdf#</sc:linkedDataPrefix>\n\
+        <sc:sampleURI>%(baseuri)s/rdf/company.rdf#be_%(legalname)s</sc:sampleURI>\n\
+        <sc:dataDumpLocation>%(baseuri)s/rdf/company.rdf</sc:dataDumpLocation>\n\
+        <changefreq>weekly</changefreq>\n\
+    </sc:dataset>\n" % ({"baseuri":self.base_uri, "legalname":re.sub(r"[^a-zA-Z0-9]", "", "".join(str(object.legalName).split()))}))
             print "wrote company %s" % object.legalName
+            """
             
         elif object_type == "catalog":
-            file = open(self.output_folder+"/catalog.rdf", "w")
+            file = open(self.output_folder+"/rdf/catalog.rdf", "w")
             file.write(self.serializeCatalogStructure(object, rdf_format="pretty-xml"))
             self.dump.write(self.serializeCatalogStructure(object, rdf_format="nt"))
+            """
             self.sitemap.write("    <sc:dataset>\n\
         <sc:datasetLabel>BMECat Catalog Structure</sc:datasetLabel>\n\
-        <sc:datasetURI>"+self.base_uri+"/catalog.rdf</sc:datasetURI>\n\
-        <sc:linkedDataPrefix slicing=\"subject-object\">"+self.base_uri+"/catalog.rdf#</sc:linkedDataPrefix>\n\
-        <sc:dataDumpLocation>"+self.base_uri+"/dump.nt</sc:dataDumpLocation>\n\
+        <sc:linkedDataPrefix slicing=\"subject-object\">%(baseuri)s/rdf/catalog.rdf#</sc:linkedDataPrefix>\n\
+        <sc:dataDumpLocation>%(baseuri)s/rdf/catalog.rdf</sc:dataDumpLocation>\n\
         <changefreq>weekly</changefreq>\n\
-    </sc:dataset>\n")
+    </sc:dataset>\n" % ({"baseuri":self.base_uri}))
             print "wrote catalog"
             self.sitemap.write("    <sc:dataset>\n\
         <sc:datasetLabel>Proprietary Property Catalog Structure</sc:datasetLabel>\n\
-        <sc:datasetURI>"+self.base_uri+"/features.rdf</sc:datasetURI>\n\
-        <sc:linkedDataPrefix slicing=\"subject-object\">"+self.base_uri+"/features.rdf#</sc:linkedDataPrefix>\n\
-        <sc:dataDumpLocation>"+self.base_uri+"/dump.nt</sc:dataDumpLocation>\n\
+        <sc:linkedDataPrefix slicing=\"subject-object\">%(baseuri)s/rdf/features.rdf#</sc:linkedDataPrefix>\n\
+        <sc:dataDumpLocation>%(baseuri)s/rdf/features.rdf</sc:dataDumpLocation>\n\
         <changefreq>weekly</changefreq>\n\
-    </sc:dataset>\n")
+    </sc:dataset>\n" % ({"baseuri":self.base_uri}))
             print "wrote features"
+            """
         
     
     def triple(self, g, subject, predicate, object, datatype=None, language=None):
@@ -150,8 +167,9 @@ class Serializer:
         """Serialize the catalog"""
         g = Graph()
         g.bind("owl", owl)
+        g.bind("foaf", foaf)
         
-        selfns = self.base_uri+"/catalog.rdf#C_"
+        selfns = self.base_uri+"/rdf/catalog.rdf#C_"
         g.bind("self", selfns)
         lang = mapLanguage(self.catalog.lang)
         if self.lang:
@@ -178,6 +196,9 @@ class Serializer:
                 label_tax = "(Taxonomy Concept: Anything that may be an instance of this category in any context)"
             self.triple(g, idref_tax, RDFS.label, Literal(label_tax), language=lang)
             self.triple(g, idref_tax, RDFS.comment, Literal(catalog_group.description), language=lang)
+            # media
+            self.appendMedia(g, idref_tax, catalog_group)
+            
             # gen
             self.triple(g, idref_gen, RDF.type, OWL.Class)
             self.triple(g, idref_gen, RDFS.subClassOf, GR.ProductOrService)
@@ -189,6 +210,8 @@ class Serializer:
                 label_gen = "(Generic Concept: This type of goods)"
             self.triple(g, idref_gen, RDFS.label, Literal(label_gen), language=lang)
             self.triple(g, idref_gen, RDFS.comment, Literal(catalog_group.description), language=lang)
+            # media
+            self.appendMedia(g, idref_gen, catalog_group)
             
         return g.serialize(format=rdf_format)
             
@@ -201,7 +224,7 @@ class Serializer:
         g.bind("vcard", vcard)
         
         identifier = re.sub(r"[^a-zA-Z0-9]", "", "".join(str(be.legalName).split())) # remove spaces
-        selfns = self.base_uri+"/company.rdf#"
+        selfns = self.base_uri+"/rdf/company.rdf#"
         g.bind("self", selfns)
         lang = mapLanguage(self.catalog.lang) # make de out of deu
         if self.lang: # command line
@@ -243,11 +266,11 @@ class Serializer:
         g = Graph()
         g.bind("owl", owl)
         g.bind("gr", gr)
-        g.bind("cat", self.base_uri+"/catalog.rdf#")
-        g.bind("prop", self.base_uri+"/features.rdf#")
+        g.bind("cat", self.base_uri+"/rdf/catalog.rdf#")
+        g.bind("prop", self.base_uri+"/rdf/features.rdf#")
         g.bind("foaf", foaf)
         
-        selfns = self.base_uri+"/offer_"+offer.id+".rdf#"
+        selfns = self.base_uri+"/rdf/"+self.offerfile_id+"_"+offer.id+".rdf#"
         g.bind("self", selfns)
         manufacturer_id = offer.manufacturer_id
         # use offer id as fallback identifier for manufacturer
@@ -391,7 +414,7 @@ class Serializer:
                 if fref_property:
                     feature_prop_id = URIRef(fref_property)
                 else: # else create a custom property
-                    feature_prop_id = URIRef(self.base_uri+"/features.rdf#P_"+system_id+"_"+fidentifier)
+                    feature_prop_id = URIRef(self.base_uri+"/rdf/features.rdf#P_"+system_id+"_"+fidentifier)
                     # create suitable object property
                     self.triple(self.feature_graph, feature_prop_id, RDF.type, OWL.ObjectProperty) # prop_id for external access
                     if qualitative:
@@ -425,8 +448,8 @@ class Serializer:
         for cataloggroup_id in offer.cataloggroup_ids:
             # make productorservice...instance and productorservicemodel instances of gen classes
             if not self.model_only:
-                self.triple(g, o_product, RDF.type, URIRef(self.base_uri+"/catalog.rdf#C_"+cataloggroup_id+"-gen"))
-            self.triple(g, o_model, RDF.type, URIRef(self.base_uri+"/catalog.rdf#C_"+cataloggroup_id+"-gen"))
+                self.triple(g, o_product, RDF.type, URIRef(self.base_uri+"/rdf/catalog.rdf#C_"+cataloggroup_id+"-gen"))
+            self.triple(g, o_model, RDF.type, URIRef(self.base_uri+"/rdf/catalog.rdf#C_"+cataloggroup_id+"-gen"))
         
         return g.serialize(format=rdf_format)
     

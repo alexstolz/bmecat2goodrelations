@@ -49,7 +49,16 @@ class Parser:
                 self.catalog_group.description = tag.content
             elif top == "PARENT_ID":
                 if tag.content != "":
-                    self.catalog_group.parent_id = "gid_"+re.sub(r"[^a-zA-Z0-9]", "", tag.content)
+                    self.catalog_group.parent_id = "gid_"+re.sub(r"[^a-zA-Z0-9]", "", tag.content)          
+        if subtop == "CATALOG_STRUCTURE" or ((len(tag.stack) > 2 and tag.stack[-3] == "CATALOG_STRUCTURE") or (len(tag.stack) > 3 and tag.stack[-4] == "CATALOG_STRUCTURE")) and self.catalog_group != None:
+            if top == "MIME_PURPOSE":
+                self.mime.name = tag.content
+            if top == "MIME_DESCR":
+                self.mime.desc = tag.content
+            if top == "MIME_TYPE":
+                self.mime.type = tag.content
+            if top == "MIME_SOURCE":
+                self.mime.source = tag.content
 
     def processArticle2CatalogGroupMap(self, subtop, top, tag):
         if subtop in ["PRODUCT_TO_CATALOGGROUP_MAP", "ARTICLE_TO_CATALOGGROUP_MAP"]:
@@ -93,6 +102,8 @@ class Parser:
         if subtop in ["PARTY", "SUPPLIER", "BUYER"] or ((len(tag.stack) > 2 and tag.stack[-3] in ["PARTY", "SUPPLIER", "BUYER"]) or (len(tag.stack) > 3 and tag.stack[-4] in ["PARTY", "SUPPLIER", "BUYER"])):
             if top == "MIME_PURPOSE":
                 self.mime.name = tag.content
+            if top == "MIME_DESCR":
+                self.mime.desc = tag.content
             if top == "MIME_TYPE":
                 self.mime.type = tag.content
             if top == "MIME_SOURCE":
@@ -158,6 +169,8 @@ class Parser:
         if subtop in ["PRODUCT", "ARTICLE"] or ((len(tag.stack) > 2 and tag.stack[-3] in ["PRODUCT", "ARTICLE"]) or (len(tag.stack) > 3 and tag.stack[-4] in ["PRODUCT", "ARTICLE"])):
             if top == "MIME_PURPOSE":
                 self.mime.name = tag.content
+            if top == "MIME_DESCR":
+                self.mime.desc = tag.content
             if top == "MIME_TYPE":
                 self.mime.type = tag.content
             if top == "MIME_SOURCE":
@@ -207,6 +220,19 @@ class Parser:
             elif top == "TERRITORY": self.catalog.eligibleRegions.append(tag.content)
             
         if self.search == "cataloggroup":
+            if close["mime"]:
+                if self.mime != None and self.mime.source != "" and self.catalog_group != None:
+                    self.catalog_group.media.append(self.mime)
+                self.mime = Mime() 
+                
+            # process catalog structure
+            self.processCatalog(subtop, top, tag)
+            # serialize catalog structure when be is processed, not with offers -> is supposed to be more performant
+            if close["catalog"]:
+                if self.catalog_group != None:
+                    self.catalog_hierarchy.append(self.catalog_group)
+                self.catalog_group = CatalogGroup()
+            
             # mappings to catalog groups
             if close["mapping"]:
                 if self.article2categorygroup.article_id != "" and self.article2categorygroup.cataloggroup_id != "":
@@ -218,19 +244,11 @@ class Parser:
         
         elif self.search == "be":
             if close["mime"]:
-                if self.mime != None and self.be != None:
+                if self.mime != None and self.mime.source != "" and self.be != None:
                     self.be.media.append(self.mime)
                 self.mime = Mime()
-                
                 #print "mime_close for supplier", top, subtop, tag.stack[-3], tag.content
-            # process catalog structure
-            self.processCatalog(subtop, top, tag)
-            # serialize catalog structure when be is processed, not with offers -> is supposed to be more performant
-            if close["catalog"]:
-                if self.catalog_group != None:
-                    self.catalog_hierarchy.append(self.catalog_group)
-                self.catalog_group = CatalogGroup()
-            
+
             # business entity tag has been closed immediately before
             if close["company"]:
                 if self.be != None and self.be.type == "supplier": # consider suppliers only
@@ -241,7 +259,7 @@ class Parser:
             
         elif self.search == "offer":
             if close["mime"]:
-                if self.mime != None and self.offer != None:
+                if self.mime != None and self.mime.source != "" and self.offer != None:
                     self.offer.media.append(self.mime)
                 self.mime = Mime()
             # feature tag has been closed

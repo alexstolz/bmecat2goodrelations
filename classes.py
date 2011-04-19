@@ -28,6 +28,7 @@ class CatalogGroup():
         self.parent_id = ""
         self.name = ""
         self.description = ""
+        self.media = []
         
 class Article2CatalogGroupMap():
     """Mapping between articles and catalog groups"""
@@ -119,6 +120,7 @@ class Mime():
     """Class for all media files"""
     def __init__(self):
         self.name = ""
+        self.desc = ""
         self.type = ""
         self.source = ""
 
