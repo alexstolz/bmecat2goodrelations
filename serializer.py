@@ -60,7 +60,6 @@ class Serializer:
             self.image_uri = self.image_uri[:-1]
             
         # try mkdir output folder
-        #if not os.path.exists(self.output_folder):
         try:
             os.makedirs(self.output_folder+"/dump")
             os.makedirs(self.output_folder+"/rdf")
@@ -71,11 +70,9 @@ class Serializer:
         self.dump = gzip.open(output_folder+"/dump/dump.nt.gz", "wb")
         self.feature_file = open(output_folder+"/rdf/features.rdf", "w")
         self.sitemap = open(output_folder+"/sitemap.xml", "w")
-        self.sitemap.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\" xmlns:sc=\"http://sw.deri.org/2007/07/sitemapextension/scschema.xsd\">\n")
             
     def __del__(self):
         """Destruction"""
-        self.sitemap.write("</urlset>")
         self.feature_file.write(self.feature_graph.serialize(format="pretty-xml"))
         self.dump.write(self.feature_graph.serialize(format="nt"))
         
@@ -85,60 +82,27 @@ class Serializer:
             file = open("%s/rdf/%s_%s.rdf" % (self.output_folder, self.offerfile_id, object.id), "w")
             file.write(self.serializeOffer(object, rdf_format="pretty-xml"))
             self.dump.write(self.serializeOffer(object, rdf_format="nt"))
-            """
-            self.sitemap.write("    <sc:dataset>\n\
-        <sc:datasetLabel>Metadata for product %(offer)s \"%(objectid)s\"</sc:datasetLabel>\n\
-        <sc:linkedDataPrefix slicing=\"subject-object\">%(baseuri)s/rdf/%(offer)s_%(objectid)s.rdf#</sc:linkedDataPrefix>\n\
-        <sc:sampleURI>%(baseuri)s/rdf/%(offer)s_%(objectid)s.rdf#offer</sc:sampleURI>\n\
-        <sc:dataDumpLocation>%(baseuri)s/rdf/%(offer)s_%(objectid)s.rdf</sc:dataDumpLocation>\n\
-        <changefreq>weekly</changefreq>\n\
-    </sc:dataset>\n" % ({"offer":self.offerfile_id, "objectid":object.id, "baseuri":self.base_uri}))
-            """
             
         elif object_type == "be":
             import datetime
             file = open(self.output_folder+"/rdf/company.rdf", "w")
             file.write(self.serializeBusinessEntity(object, rdf_format="pretty-xml"))
             self.dump.write(self.serializeBusinessEntity(object, rdf_format="nt"))
-            self.sitemap.write("    <sc:dataset>\n\
-        <sc:datasetLabel>Semantic Web dataset of %(legalname)s</sc:datasetLabel>\n\
-        <sc:linkedDataPrefix slicing=\"subject-object\">%(baseuri)s/</sc:linkedDataPrefix>\n\
-        <sc:dataDumpLocation>%(baseuri)s/dump/dump.nt.gz</sc:dataDumpLocation>\n\
-        <lastmod>%(lastmod)s</lastmod>\n\
-        <changefreq>weekly</changefreq>\n\
-    </sc:dataset>\n" % ({"baseuri":self.base_uri, "legalname":object.legalName, "lastmod":datetime.datetime.strftime(datetime.datetime.now(), "%Y-%m-%dT%H:%M:%SZ")}))
-            """
-            self.sitemap.write("    <sc:dataset>\n\
-        <sc:datasetLabel>Company Metadata</sc:datasetLabel>\n\
-        <sc:linkedDataPrefix slicing=\"subject-object\">%(baseuri)s/rdf/company.rdf#</sc:linkedDataPrefix>\n\
-        <sc:sampleURI>%(baseuri)s/rdf/company.rdf#be_%(legalname)s</sc:sampleURI>\n\
-        <sc:dataDumpLocation>%(baseuri)s/rdf/company.rdf</sc:dataDumpLocation>\n\
-        <changefreq>weekly</changefreq>\n\
-    </sc:dataset>\n" % ({"baseuri":self.base_uri, "legalname":re.sub(r"[^a-zA-Z0-9]", "", "".join(str(object.legalName).split()))}))
-            print "wrote company %s" % object.legalName
-            """
+            self.sitemap.write("""<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\" xmlns:sc=\"http://sw.deri.org/2007/07/sitemapextension/scschema.xsd\">
+    <sc:dataset>
+        <sc:datasetLabel>Semantic Web dataset of %(legalname)s</sc:datasetLabel>
+        <sc:linkedDataPrefix slicing=\"subject-object\">%(baseuri)s/</sc:linkedDataPrefix>
+        <sc:dataDumpLocation>%(baseuri)s/dump/dump.nt.gz</sc:dataDumpLocation>
+        <lastmod>%(lastmod)s</lastmod>
+        <changefreq>weekly</changefreq>
+    </sc:dataset>
+</urlset>""" % ({"baseuri":self.base_uri, "legalname":object.legalName, "lastmod":datetime.datetime.strftime(datetime.datetime.now(), "%Y-%m-%dT%H:%M:%SZ")}))
             
         elif object_type == "catalog":
             file = open(self.output_folder+"/rdf/catalog.rdf", "w")
             file.write(self.serializeCatalogStructure(object, rdf_format="pretty-xml"))
-            self.dump.write(self.serializeCatalogStructure(object, rdf_format="nt"))
-            """
-            self.sitemap.write("    <sc:dataset>\n\
-        <sc:datasetLabel>BMECat Catalog Structure</sc:datasetLabel>\n\
-        <sc:linkedDataPrefix slicing=\"subject-object\">%(baseuri)s/rdf/catalog.rdf#</sc:linkedDataPrefix>\n\
-        <sc:dataDumpLocation>%(baseuri)s/rdf/catalog.rdf</sc:dataDumpLocation>\n\
-        <changefreq>weekly</changefreq>\n\
-    </sc:dataset>\n" % ({"baseuri":self.base_uri}))
-            print "wrote catalog"
-            self.sitemap.write("    <sc:dataset>\n\
-        <sc:datasetLabel>Proprietary Property Catalog Structure</sc:datasetLabel>\n\
-        <sc:linkedDataPrefix slicing=\"subject-object\">%(baseuri)s/rdf/features.rdf#</sc:linkedDataPrefix>\n\
-        <sc:dataDumpLocation>%(baseuri)s/rdf/features.rdf</sc:dataDumpLocation>\n\
-        <changefreq>weekly</changefreq>\n\
-    </sc:dataset>\n" % ({"baseuri":self.base_uri}))
-            print "wrote features"
-            """
-        
+            self.dump.write(self.serializeCatalogStructure(object, rdf_format="nt"))  
     
     def triple(self, g, subject, predicate, object, datatype=None, language=None):
         """Create a triple in graph g"""
