@@ -14,6 +14,7 @@ Organization: E-Business and Web Science Research Group
 from rdflib import *
 from jinja2 import *
 import os
+import codecs
 
 FOAF = Namespace("http://xmlns.com/foaf/0.1/")
 
@@ -60,9 +61,10 @@ def create_html(output_dir):
     if not os.path.exists("%s/rdf/catalog.rdf" % output_dir):
         return
     
+    print "found proprietary catalog structure - create html representation thereof"
+    
     catalog_file = "%s/rdf/catalog.rdf" % output_dir
     
-    import codecs
     html = codecs.open("%s/rdf/catalog.html" % output_dir, mode="w", encoding="utf-8")
     
     loader = FileSystemLoader(".")
