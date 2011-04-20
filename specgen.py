@@ -62,7 +62,8 @@ def create_html(output_dir):
     
     catalog_file = "%s/rdf/catalog.rdf" % output_dir
     
-    html = open("%s/rdf/catalog.html" % output_dir, "w")
+    import codecs
+    html = codecs.open("%s/rdf/catalog.html" % output_dir, mode="w", encoding="utf-8")
     
     loader = FileSystemLoader(".")
     env = Environment(loader=loader)
@@ -77,16 +78,18 @@ def create_html(output_dir):
             uri = str(c)
             idf = uri[uri.find("#")+1:]
             label = g.value(c, RDFS.label)
-            title = str(label)
-            title = title[:title.find("(")].strip()
+            title = label[:label.find("(")].strip()
             comment = g.value(c, RDFS.comment)
             subclassof = get_isSubElementOf(g, c, RDFS.subClassOf)
             depiction = g.value(c, FOAF.depiction)
+
             if depiction:
                 depiction = """<img src="%(depiction)s" alt="" />""" % ({"depiction":depiction, "label":label})
+            else:
+                depiction = ""
             classes.append({"idf":idf, "title":title, "label":label, "type_url":OWL.Class, "type":"owl:Class", "uri":uri, "depiction":depiction,
               "rdfs_subclassof":RDFS.subClassOf, "rdfs_comment":RDFS.comment, "rdfs_label":RDFS.label, "comment":comment, "subclassof":pretty_list(subclassof)})
                 
-    html.write(template_classes.render({"classes":classes}).encode("utf-8"))
+    html.write(template_classes.render({"classes":classes}))
     
 

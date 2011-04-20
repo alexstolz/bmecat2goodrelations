@@ -211,14 +211,15 @@ class Serializer:
         self.triple(g, be_about, VCARD.fax, Literal(be.fax))
         self.triple(g, be_about, VCARD.fn, Literal(be.legalName), language=lang)
         # address
-        self.triple(g, be_about, VCARD.adr, be_address)
-        self.triple(g, be_address, RDF.type, VCARD.Address)
-        self.triple(g, be_address, VCARD['street-address'], Literal(be.street_address), language=lang)
-        self.triple(g, be_address, VCARD['postal-code'], Literal(be.postal_code), datatype=XSD.string)
-        self.triple(g, be_address, VCARD['post-office-box'], Literal(be.postal_box), language=lang)
-        self.triple(g, be_address, VCARD.locality, Literal(be.location), language=lang)
-        self.triple(g, be_address, VCARD.region, Literal(be.region), language=lang)
-        self.triple(g, be_address, VCARD['country-name'], Literal(be.country_name), language=lang)
+        if be.street_address or be.postal_box or be.postal_code or be.location or be.region or be.country_name:
+            self.triple(g, be_about, VCARD.adr, be_address)
+            self.triple(g, be_address, RDF.type, VCARD.Address)
+            self.triple(g, be_address, VCARD['street-address'], Literal(be.street_address), language=lang)
+            self.triple(g, be_address, VCARD['postal-code'], Literal(be.postal_code), datatype=XSD.string)
+            self.triple(g, be_address, VCARD['post-office-box'], Literal(be.postal_box), language=lang)
+            self.triple(g, be_address, VCARD.locality, Literal(be.location), language=lang)
+            self.triple(g, be_address, VCARD.region, Literal(be.region), language=lang)
+            self.triple(g, be_address, VCARD['country-name'], Literal(be.country_name), language=lang)
         
         # media
         self.appendMedia(g, be_about, be)

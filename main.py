@@ -107,7 +107,7 @@ def main():
             previous = arg
             
     if not input_file:
-        sys.stderr.write("No XML input file was provided")
+        sys.stderr.write("No XML input file was provided\n")
         print "Usage summary: \"python main.py --help\""
         return
     
