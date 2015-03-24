@@ -1,5 +1,4 @@
-## Prepare Your Business for the Future of Commerce! ##
-## Create GoodRelations Product Data from BMEcat XML Catalogs ##
+## Prepare Your Business for the Future of Commerce! - Create GoodRelations Product Data from BMEcat XML Catalogs ##
 
 ### About ###
 
