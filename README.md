@@ -48,4 +48,4 @@ The source code distributed via this Google repository is available under a free
 
 BMEcat2GoodRelations is available under the terms of the GNU Lesser General Public License. The work on this project has been supported by the [German Federal Ministry of Education and Research (BMBF)](http://www.bmbf.de/en/) by a grant under the KMU Innovativ program as part of the [Intelligent Match project](http://www.intelligent-match.de/) (FKZ 01IS10022B).
 
-![http://www.productontology.org/static/bmbf.png](http://www.bmbf.de/en/)
+![http://www.bmbf.de/en/](http://www.productontology.org/static/bmbf.png)
