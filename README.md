@@ -2,7 +2,7 @@
 
 ### About ###
 
-This portable command line tool aims at facilitating the generation of !GoodRelations documents to large or medium-sized enterprises that already support the BMEcat format (e.g. via PIM systems). The resulting output is intended for a quick and efficient publication of highly structured offers on a Web scale.
+This portable command line tool aims at facilitating the generation of GoodRelations documents to large or medium-sized enterprises that already support the BMEcat format (e.g. via PIM systems). The resulting output is intended for a quick and efficient publication of highly structured offers on a Web scale.
 
 ### Features ###
 
